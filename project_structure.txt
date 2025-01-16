@@ -1,0 +1,57 @@
+Ampire/                       # in github
+├── Ampire/                   # ماژول اصلی پروژه
+│   ├── __init__.py           # نقطه ورود اصلی
+│   ├── amp/                  # هسته AMP و Variantهای آن
+│   │   ├── __init__.py
+│   │   ├── base.py           # کلاس پایه AMP
+│   │   ├── vanilla.py        # AMP استاندارد
+│   │   ├── damped.py         # AMP با Damping
+│   │   ├── robust.py         # AMP مقاوم در برابر نویز
+│   │   ├── vector.py         # AMP وکتوری
+│   │   ├── advanced/         # AMP پیشرفته (قابل توسعه)
+│   │       ├── __init__.py
+│   │       ├── sparse_amp.py # AMP برای سیگنال‌های Sparse
+│   │       ├── noise_aware.py # AMP با مدیریت نویز
+│   ├── federated/            # ماژول یادگیری فدرال
+│   │   ├── __init__.py
+│   │   ├── client.py         # تعریف کلاینت
+│   │   ├── server.py         # تعریف سرور
+│   │   ├── fed_avg.py        # الگوریتم FedAvg
+│   │   ├── fed_prox.py       # الگوریتم FedProx
+│   │   ├── utils.py          # ابزارهای کمک‌کننده
+│   ├── ensemble/             # مدیریت Ensemble
+│   │   ├── __init__.py
+│   │   ├── base.py           # کلاس پایه Ensemble
+│   │   ├── voting.py         # Ensemble با Voting
+│   │   ├── weighted.py       # Ensemble با وزن‌دهی
+│   │   ├── stacking.py       # Ensemble با Stacking
+│   ├── utils/                # ابزارها و توابع عمومی
+│   │   ├── __init__.py
+│   │   ├── data_loader.py    # مدیریت و بارگذاری داده‌ها
+│   │   ├── metrics.py        # ابزارهای ارزیابی
+│   │   ├── gpu.py            # ابزارهای مرتبط با GPU و TPU
+│   │   ├── flow.py           # مدیریت جریان داده
+│   ├── config.py             # تنظیمات کلی پروژه
+│   ├── exceptions.py         # مدیریت خطاها و استثناها
+├── docs/                     # مستندات پروژه
+│   ├── index.md              # مستندات اصلی
+│   ├── installation.md       # راهنمای نصب
+│   ├── usage.md              # آموزش استفاده
+│   ├── api_reference.md      # مرجع API
+│   ├── advanced_features.md  # ویژگی‌های پیشرفته
+├── examples/                 # مثال‌ها و کاربردهای پروژه
+│   ├── basic_amp_example.py  # مثال استفاده از AMP ساده
+│   ├── federated_example.py  # مثال یادگیری فدرال
+│   ├── ensemble_example.py   # مثال استفاده از Ensemble
+├── tests/                    # تست‌ها
+│   ├── __init__.py
+│   ├── test_amp.py           # تست AMP و Variantها
+│   ├── test_federated.py     # تست یادگیری فدرال
+│   ├── test_ensemble.py      # تست Ensemble
+│   ├── test_advanced.py      # تست ویژگی‌های پیشرفته
+├── requirements.txt          # وابستگی‌های پروژه
+├── setup.py                  # اسکریپت نصب
+├── pyproject.yaml            # اطلاعات پروژه (مطابق PEP 518)
+├── README.md                 # توضیحات کلی پروژه
+├── LICENSE                   # مجوز پروژه
+└── .gitignore                # فایل‌های نادیده گرفته شده در Git
