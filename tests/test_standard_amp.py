@@ -16,3 +16,14 @@ def test_denoise(amp_optimizer):
     x = tf.constant([-0.2, 0.5, 1.0, -1.5], dtype=tf.float32)
     expected_output=tf.constant([-0.19, 0.49, 0.99, -1.49], dtype=tf.float32)
     tf.debugging.assert_near(amp_optimizer.denoise(x), expected_output)
+
+
+def test_compute_correction(amp_optimizer):
+    z = tf.constant([0.1, -0.2, 0.3, -0.4], dtype=tf.float32)
+    denoise_derivative = tf.constant([0.5, 0.6, 0.7, 0.8], dtype=tf.float32)
+    delta = 0.5 # m/n=0.5
+
+    expected_correction = (tf.reduce_mean(denoise_derivative)/delta)*z
+    computed_correction = amp_optimizer.compute_correction(z, denoise_derivative, delta)
+
+    tf.debugging.assert_near(computed_correction, expected_correction)
