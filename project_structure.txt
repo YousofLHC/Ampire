@@ -6,6 +6,7 @@ Ampire/                       # in github
 │   │   ├── base.py           # کلاس پایه AMP
 │   │   ├── vanilla.py        # AMP استاندارد
 │   │   ├── damped.py         # AMP با Damping
+│   │   ├── standard_amp.py
 │   │   ├── robust.py         # AMP مقاوم در برابر نویز
 │   │   ├── vector.py         # AMP وکتوری
 │   │   ├── advanced/         # AMP پیشرفته (قابل توسعه)
