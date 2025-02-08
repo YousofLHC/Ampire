@@ -111,9 +111,26 @@ class StandardAMP(BaseAMPOptimizer):
                            delta         : float
                            ) -> tf.Tensor:
         """
-        Computes the correction term for improved convergence.
+        Computes the Onsager correction term.
+
+        Parameters:
+        -----------
+        z                  : tf.Tensor
+            Residual vector from previous iteration.
+        denoise_derivative : tf.Tensor
+            The derivative of the denoising function.
+        delta              : float
+            Measurment ratio (m/n)
+
+        Returns:
+        --------
+        tf.Tensor
+            The Onsager correction term.
+
         """
-        raise NotImplementedError
+        mean_derivative = tf.reduce_mean(denoise_derivative)
+        correction = (mean_derivative/delta)*z
+        return correction
 
     def get_config(self) -> Dict[str, Any]:
         """
