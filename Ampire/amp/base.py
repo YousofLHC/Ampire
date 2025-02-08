@@ -66,8 +66,9 @@ class BaseAMPOptimizer(tf.keras.optimizers.Optimizer, ABC):
             Convergence tolerance.
         """
         super().__init__(name=name, **kwargs)
+        self.name    : str=name
         self.max_iter: int=max_iter
-        self.tol: float=tol
+        self.tol     : float=tol
 
     @abstractmethod
     def build(self,variables: List[tf.Variable]) -> None:
@@ -96,12 +97,17 @@ class BaseAMPOptimizer(tf.keras.optimizers.Optimizer, ABC):
         """Computes the correction term for improved convergence."""
         raise NotImplementedError
 
-    @abstractmethod
+    
     def has_converged(self, x_old: tf.Tensor, x_new: tf.Tensor) -> bool:
         """Checks whether the algorithm has converged."""
-        raise NotImplementedError
+        return tf.norm(x_new - x_old) < self.tol
 
-    @abstractmethod
     def get_config(self) -> Dict[str, Any]:
         """Returns optimizer configuration for TensorFlow compatibility."""
-        raise NotImplementedError
+        config = super(tf.keras.optimizers.Optimizer).get_config()
+        config.update({
+            "name"    : self.name,
+            "max_iter": self.max_iter,
+            "tol"     : self.tol,
+        })
+        return config
