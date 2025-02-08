@@ -72,7 +72,10 @@ class BaseAMPOptimizer(tf.keras.optimizers.Optimizer, ABC):
         tol           : float (default=1e-6)
             Convergence tolerance.
         """
-        super().__init__(name=name, **kwargs)
+        super().__init__(
+            learning_rate=learning_rate,
+            name=name,
+            **kwargs)
         self.learning_rate : float=learning_rate
         self.name          : str=name
         self.max_iter      : int=max_iter
