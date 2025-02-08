@@ -43,7 +43,7 @@ class BaseAMPOptimizer(tf.keras.optimizers.Optimizer, ABC):
         Abstract method for applying gradient updates.
     denoise(x: tf.Tensor) -> tf.Tensor
         Abstract method for applying a denoising function.
-    compute_correction(z: tf.Tensor, eta_derivative: tf.Tensor, delta: float) -> tf.Tensor
+    compute_correction(z: tf.Tensor, denoise_derivative: tf.Tensor, delta: float) -> tf.Tensor
         Abstract method to compute the correction term.
     has_converged(x_old: tf.Tensor, x_new: tf.Tensor) -> bool
         Abstract method to check for convergence.
@@ -102,7 +102,7 @@ class BaseAMPOptimizer(tf.keras.optimizers.Optimizer, ABC):
     @abstractmethod
     def compute_correction(self, 
                            z             : tf.Tensor, 
-                           eta_derivative: tf.Tensor, 
+                           denoise_derivative: tf.Tensor, 
                            delta         : float
                            ) -> tf.Tensor:
         """Computes the correction term for improved convergence."""

@@ -39,7 +39,7 @@ class StandardAMP(BaseAMPOptimizer):
         Applies gradient updates.
     denoise(x: tf.Tensor) -> tf.Tensor
         Applies a denoising function
-    compute_correction(z: tf.Tensor, eta_derivative: tf.Tensor, delta: float) -> tf.Tensor
+    compute_correction(z: tf.Tensor, denoise_derivative: tf.Tensor, delta: float) -> tf.Tensor
         Computes the correction term.
     has_converged(x_old: tf.Tensor, x_new: tf.Tensor) -> bool
         Checks for convergence.
@@ -107,7 +107,7 @@ class StandardAMP(BaseAMPOptimizer):
         return tf.sign(x)*tf.maximum(tf.abs(x)-self.tau, 0)
     def compute_correction(self,
                            z             : tf.Tensor,
-                           eta_derivative: tf.Tensor,
+                           denoise_derivative: tf.Tensor,
                            delta         : float
                            ) -> tf.Tensor:
         """
