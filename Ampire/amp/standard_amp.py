@@ -48,8 +48,9 @@ class StandardAMP(BaseAMPOptimizer):
     """
 
     def __init__(self,
-                 learning_rate: float=0.01,
                  name         : str="StandardAMP",
+                 learning_rate: float=0.01,
+                 tau          : float=0.01, 
                  max_iter     : int=50,
                  tol          : float=1e-6,
                  **kwargs     : Any
@@ -59,16 +60,19 @@ class StandardAMP(BaseAMPOptimizer):
 
         Parameters:
         -----------
-        learning_rate: float (default=0.01)
-            Learning rate for optimization updates.
         name         : str   (default="StandardAMP")
             Name of the optimizer.
+        learning_rate: float (default=0.01)
+            Learning rate for optimization updates.
+        tau          : float (default=0.01)
+            Threshold parameter for soft-thresholding.
         max_iter     : int   (default=50)
             Maximum number of iterations.
         tol          : float (default=1e-6)
             Convergence tolerance.
         """
-        super().__init__(learning_rate=learning_rate, name=name, max_iter=max_iter, tol=tol, **kwargs)
+        super().__init__(name=name, learning_rate=learning_rate, max_iter=max_iter, tol=tol, **kwargs)
+        self.tau = tau
 
     def build(self,
               variables: List[tf.Variable]
@@ -76,7 +80,7 @@ class StandardAMP(BaseAMPOptimizer):
         """
         Initializes optimizer-related variables.
         """
-        raise NotImplementedError
+        self.variables = variables
     def apply_gradients(self,
                         grads_and_vars: List[Tuple[tf.Tensor, tf.Variable]],
                         name: Optional[str]=None,
@@ -88,9 +92,19 @@ class StandardAMP(BaseAMPOptimizer):
 
     def denoise(self, x: tf.Tensor) -> tf.Tensor:
         """
-        Applies a denoising function to the estimated signal.
+        Applies a soft-thresholding function as a denoising step.
+
+        Parameters:
+        -----------
+        x : tf.Tesnor
+            The input tensor.
+
+        Returns:
+        --------
+        tf.Tensor
+            The thresholded output.
         """
-        raise NotImplementedError
+        return tf.sign(x)*tf.maximum(tf.abs(x)-self.tau, 0)
     def compute_correction(self,
                            z             : tf.Tensor,
                            eta_derivative: tf.Tensor,
