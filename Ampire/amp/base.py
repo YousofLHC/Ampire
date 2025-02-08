@@ -26,9 +26,13 @@ class BaseAMPOptimizer(tf.keras.optimizers.Optimizer, ABC):
 
     Attributes:
     -----------
+    learning_rate : float (default=0.01)
+        Learning rate for optimization updates.
+    name     : str (default="BaseAMPOptimizer")
+        Name of the optimizer.
     max_iter : int (default=50)
         Maximum number of iterations.
-    tol : float (default=1e-6)
+    tol      : float (default=1e-6)
         Convergence tolerance.
 
     Methods:
@@ -48,27 +52,31 @@ class BaseAMPOptimizer(tf.keras.optimizers.Optimizer, ABC):
     """
 
     def __init__(self, 
-                 name    : str="BaseAMPOptimizer",
-                 max_iter: int=50,
-                 tol     : float=1e-6,
-                 **kwargs: Any
+                 learning_rate: float=0.01,
+                 name         : str="BaseAMPOptimizer",
+                 max_iter     : int=50,
+                 tol          : float=1e-6,
+                 **kwargs     : Any
                  ) -> None:
         """
         Initializes the Base AMP Optimizer.
 
         Parameters:
         -----------
-        name : str (default="BaseAMPOptimizer")
+        learning_rate : float (default=0.01)
+            Learning rate for optimization updates.
+        name          : str (default="BaseAMPOptimizer")
             Name of the optimizer.
-        max_iter : int (default=50)
+        max_iter      : int (default=50)
             Maximum number of iterations.
-        tol : float (default=1e-6)
+        tol           : float (default=1e-6)
             Convergence tolerance.
         """
         super().__init__(name=name, **kwargs)
-        self.name    : str=name
-        self.max_iter: int=max_iter
-        self.tol     : float=tol
+        self.learning_rate : float=learning_rate
+        self.name          : str=name
+        self.max_iter      : int=max_iter
+        self.tol           : float=tol
 
     @abstractmethod
     def build(self,variables: List[tf.Variable]) -> None:

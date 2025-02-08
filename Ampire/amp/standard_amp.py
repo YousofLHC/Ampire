@@ -24,9 +24,11 @@ class StandardAMP(BaseAMPOptimizer):
 
     Attributes:
     -----------
-    max_iter : int (default=50)
+    learning_rate: float (default=0.01)
+        Learning rate for optimization updates.
+    max_iter     : int (default=50)
         Maximum number of iteration
-    tol      : float (default=1e-6)
+    tol          : float (default=1e-6)
         Convergence tolerance.
 
     Methods:
@@ -46,24 +48,27 @@ class StandardAMP(BaseAMPOptimizer):
     """
 
     def __init__(self,
-                 name    : str="StandardAMP",
-                 max_iter: int=50,
-                 tol     : float=1e-6,
-                 **kwargs: Any
+                 learning_rate: float=0.01,
+                 name         : str="StandardAMP",
+                 max_iter     : int=50,
+                 tol          : float=1e-6,
+                 **kwargs     : Any
                  ) -> None:
         """
         Initializes the Standard AMP Optimizer.
 
         Parameters:
         -----------
-        name     : str   (default="StandardAMP")
+        learning_rate: float (default=0.01)
+            Learning rate for optimization updates.
+        name         : str   (default="StandardAMP")
             Name of the optimizer.
-        max_iter : int   (default=50)
+        max_iter     : int   (default=50)
             Maximum number of iterations.
-        tol      : float (default=1e-6)
+        tol          : float (default=1e-6)
             Convergence tolerance.
         """
-        super().__init__(name=name, max_iter=max_iter, tol=tol, **kwargs)
+        super().__init__(learning_rate=learning_rate, name=name, max_iter=max_iter, tol=tol, **kwargs)
 
     def build(self,
               variables: List[tf.Variable]
@@ -93,14 +98,6 @@ class StandardAMP(BaseAMPOptimizer):
                            ) -> tf.Tensor:
         """
         Computes the correction term for improved convergence.
-        """
-        raise NotImplementedError
-    def has_converged(self,
-                      x_old: tf.Tensor,
-                      x_new: tf.Tensor
-                      ) -> bool:
-        """
-        Checks whether the algorithm has converged.
         """
         raise NotImplementedError
 
