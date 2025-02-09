@@ -72,8 +72,10 @@ class StandardAMP(BaseAMPOptimizer):
             Convergence tolerance.
         """
         super().__init__(name=name, learning_rate=learning_rate, max_iter=max_iter, tol=tol, **kwargs)
-        self.tau = tau
+        self.tau        = tau
         self._variables = None # Placeholder for optimizer variables
+        self._z         = None  # Ensure _z is initialized
+
     def build(self,
               variables: List[tf.Variable],
               y        : tf.Tensor,
@@ -141,6 +143,9 @@ class StandardAMP(BaseAMPOptimizer):
         variables : List[tf.Tensor]
             List of trainable variable to optimize.
         """
+        if self._z is None:
+            raise ValueError("Optimizer is not built. Call `build()` before `minimize()`.")
+
         with tf.GradientTape() as tape:
             loss = loss_fn() # Compute loss
         grads = tape.gradient(loss, variables) # Compute gradients
@@ -187,6 +192,9 @@ class StandardAMP(BaseAMPOptimizer):
         --------
         None
         """
+        if self._variables is None:
+            raise ValueError("Optimizer variables are not initialized. Call `build()` first.")
+
         # Validate input type
         if not isinstance(grads_and_vars, list):
             raise ValueError(f"grads_and_vars must be a list of (gradient, variable) tuple. Got {grads_and_vars}")
