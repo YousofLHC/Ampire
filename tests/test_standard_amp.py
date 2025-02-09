@@ -53,19 +53,6 @@ def test_compute_correction(amp_optimizer):
     tf.debugging.assert_near(computed_correction, expected_correction, atol=1e-6)
 
 
-# Test `apply_gradients` function
-def test_apply_gradients(amp_optimizer):
-    """
-    Test if `apply_gradients` correctly updates variables.
-    """
-    w = tf.Variable(2.0, dtype=tf.float32)  # Use `tf.Variable` instead of `tf.constant`
-    grad = tf.constant(3.0, dtype=tf.float32) # Gradient value
-
-    amp_optimizer.apply_gradients([(grad, w)])
-
-    expected_w = 2.0 - (amp_optimizer.learning_rate*3.0)
-    tf.debugging.assert_near(w, expected_w, atol=1e-6 )
-
 
 
 def test_build(amp_optimizer):
@@ -136,6 +123,38 @@ def test_get_config(amp_optimizer):
         "Mismatch `tol` parameter."
     )
 
+def test_minimize_without_build(amp_optimizer):
+    """
+    Test that calling `minimize()` before `build()` raises an error.
+    """
+    w = tf.Variable(5.0, dtype=tf.float32)
+
+    def loss_function():
+        return tf.square(w - 3)
+
+    with pytest.raises(ValueError, match="Optimizer is not built. Call `build\\(\\)` before `minimize\\(\\)`."):
+        amp_optimizer.minimize(loss_function, variables=[w])
+
+
+# Test `apply_gradients` function
+def test_apply_gradients(amp_optimizer):
+    """
+    Test if `apply_gradients` correctly updates variables.
+    """
+    # Define trainable variable and gradient
+    w = tf.Variable(2.0, dtype=tf.float32)  # Use `tf.Variable` instead of `tf.constant`
+    grad = tf.constant(3.0, dtype=tf.float32) # Gradient value
+
+    # Dummy values for `build()`
+    y = tf.constant([0.2], dtype=tf.float32)
+    A = tf.constant([[0.5]], dtype=tf.float32)
+
+    # Call `build()` before using optimizer
+    amp_optimizer.build([w], y, A)
+    amp_optimizer.apply_gradients([(grad, w)])
+
+    expected_w = 2.0 - (amp_optimizer.learning_rate*3.0)
+    tf.debugging.assert_near(w, expected_w, atol=1e-6 )
 
 
 
