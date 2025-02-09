@@ -87,8 +87,27 @@ class StandardAMP(BaseAMPOptimizer):
                         ) -> None:
         """
         Applies gradient updates to model parameters.
+
+        Parameters:
+        -----------
+        grads_and_vars : List[Tuple[tf.Tensor, tf.Variable]]
+            A list of tuples containing gradients and the corresponding variables.
+        name : Optional[str] (default=None)
+            Optional name for operation.
+
+        Returns:
+        --------
+        None
         """
-        raise NotImplementedError
+        # Validate input type
+        if not isinstance(grads_and_vars, list):
+            raise ValueError(f"grads_and_vars must be a list of (gradient, variable) tuple. Got {grads_and_vars}")
+        # Update variables using AMP optimization rule
+        for grad, var in grads_and_vars:
+            if grad is not None:
+                update = var - self.learning_rate*grad
+                var.assign(update) # we can do it in one line var.assign_sub(self.learning_rate*grad)
+
 
     def denoise(self, x: tf.Tensor) -> tf.Tensor:
         """
