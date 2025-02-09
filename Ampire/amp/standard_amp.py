@@ -73,14 +73,25 @@ class StandardAMP(BaseAMPOptimizer):
         """
         super().__init__(name=name, learning_rate=learning_rate, max_iter=max_iter, tol=tol, **kwargs)
         self.tau = tau
-
+        self._variables = None # Placeholder for optimizer variables
     def build(self,
               variables: List[tf.Variable]
               ) -> None:
         """
         Initializes optimizer-related variables.
+
+        Parameters:
+        -----------
+        variables : List[tf.Variable]
+            List of TensorFlow variables that the optimizer will update.
+
+        Returns:
+        -------
+        None
         """
-        self.variables = variables
+        if not variables:
+            raise ValueError("No variables provided to the optimizer.")
+        self._variables = [tf.Variable(v, trainable=True, dtype=tf.float32) for v in variables]
     def apply_gradients(self,
                         grads_and_vars: List[Tuple[tf.Tensor, tf.Variable]],
                         name: Optional[str]=None,
