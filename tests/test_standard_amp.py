@@ -74,6 +74,29 @@ def test_get_config(amp_optimizer):
     assert config['tol'] == amp_optimizer.tol, "Mismatch in `tol` parameter."
 
 
+def test_minimize(amp_optimizer):
+    """
+    Test the `minimze()` function to ensure it correctly updates variables.
+    """
+    # Define a simple quadratic loss function: f(w)=(w-3)^2
+    def loss_function():
+        return tf.square(w-3)
+
+    # Create a trainable variable
+    w = tf.Variable(5.0, dtype=tf.float32)
+
+    # Apply minimze
+    amp_optimizer.minimize(loss_function, variables=[w])
+
+    # Expected new value of `w` (after one gradient descent step)
+    expected_w = w.numpy()
+
+    # Ensure w moves closer to 3 (optimum)
+    assert expected_w < 5.0, (
+        f"Minimization failed, expected w <5.0 but got {expected_w}"
+    )
+
+
 
 
 
