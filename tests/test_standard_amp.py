@@ -53,6 +53,19 @@ def test_compute_correction(amp_optimizer):
     tf.debugging.assert_near(computed_correction, expected_correction, atol=1e-6)
 
 
+# Test `apply_gradients` function
+def test_apply_gradients(amp_optimizer):
+    """
+    Test if `apply_gradients` correctly updates variables.
+    """
+    w = tf.Variable(2.0, dtype=tf.float32)  # Use `tf.Variable` instead of `tf.constant`
+    grad = tf.constant(3.0, dtype=tf.float32) # Gradient value
+
+    amp_optimizer.apply_gradients([(grad, w)])
+
+    expected_w = 2.0 - (amp_optimizer.learning_rate*3.0)
+    tf.debugging.assert_near(w, expected_w, atol=1e-6 )
+
 
 
 
