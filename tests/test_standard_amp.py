@@ -57,6 +57,31 @@ def test_build(amp_optimizer):
     )
 
 
+def test_get_config(amp_optimizer):
+    """
+    Test if `get_config()` returns the correct dictionary.
+    """
+    config = amp_optimizer.get_config()
+
+    assert isinstance(config, dict), "`get_config()` should return a dictionary."
+    assert config['learning_rate'] == amp_optimizer.learning_rate, (
+        "Mismatch in `learning_rate` parameter."
+    )
+    assert config['tau'] == amp_optimizer.tau, "Mismatch in `tau` parameter."
+    assert config['max_iter'] == amp_optimizer.max_iter, (
+        "Mismatch in `max_iter` parameter."
+    )
+    assert config['tol'] == amp_optimizer.tol, "Mismatch in `tol` parameter."
+
+
+
+
+
+
+
+
+
+
 
 
 
