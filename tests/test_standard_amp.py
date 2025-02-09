@@ -27,3 +27,13 @@ def test_compute_correction(amp_optimizer):
     computed_correction = amp_optimizer.compute_correction(z, denoise_derivative, delta)
 
     tf.debugging.assert_near(computed_correction, expected_correction)
+
+
+def test_apply_gradients(amp_optimizer):
+    w = tf.Variable(2.0, dtype=tf.float32) # Initialize variable
+    grad = tf.constant(3.0, dtype=tf.float32) # Computed gradient
+
+    amp_optimizer.apply_gradients([(grad, w)])
+
+    expected_w = 2.0 - (amp_optimizer.learning_rate*3.0)
+    tf.debugging.assert_near(w, expected_w)
