@@ -68,6 +68,56 @@ def test_apply_gradients(amp_optimizer):
 
 
 
+def test_build(amp_optimizer):
+    """
+    Test if `build` correctly initializes optimizer variables.
+    """
+
+    # Define dummy trainable Variables
+    variables = [tf.Variable(0.1), tf.Variable(-0.5), tf.Variable(0.8)]
+
+    # Dummy input (y) and measurement matrix (A)
+    y = tf.constant([0.2, -0.3, 0.5], dtype=tf.float32)
+    A = tf.constant(
+        [
+            [0.1, 0.2, 0.3],
+            [-.1, 0.5, -.4],
+            [0.3, -.2, 0.1]
+        ],
+        dtype=tf.float32,
+    )
+
+    # Build optimizer
+    amp_optimizer.build(variables, y, A)
+
+
+    # Assertions
+    assert amp_optimizer._variables is not None, (
+        "Optimizer Variables should not be None after build."
+    )
+    assert isinstance(amp_optimizer._variables, list), (
+        "`_Variables` should be a list."
+    )
+    assert all(isinstance(var, tf.Variable) for var in amp_optimizer._variables), (
+        "All elements in `_variables` should be TensorFlow Variables."
+    ) 
+    assert len(amp_optimizer._variables)==len(variables), (
+        f"Expected {len(amp_optimizer._variables)} variables, but found {len(amp_optimizer._variables)}."
+    )
+
+    # Check if `_z` (residual term) is initialized correctly
+    expected_z = y-tf.linalg.matvec(A, tf.zeros_like(y, dtype=tf.float32))
+    tf.debugging.assert_near(amp_optimizer._z, expected_z, atol=1e-6)
+
+    # Check if `delta` is computed correctly
+    expected_delta = tf.cast(tf.shape(y)[0],tf.float32)/tf.cast(tf.shape(A)[1],dtype=tf.float32)
+    tf.debugging.assert_near(amp_optimizer.delta, expected_delta, atol=1e-6)
+
+
+
+
+
+
 
 
 
