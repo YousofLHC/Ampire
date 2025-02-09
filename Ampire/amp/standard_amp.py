@@ -12,7 +12,7 @@ Author  : Yousof Ghalenoei (YousofLHC)
 Licence : MIT
 """
 
-from typing import Any, List, Tuple, Dict, Optional
+from typing import Any, List, Tuple, Dict, Optional, Callable
 import tensorflow as tf
 from .base import BaseAMPOptimizer
 
@@ -92,6 +92,28 @@ class StandardAMP(BaseAMPOptimizer):
         if not variables:
             raise ValueError("No variables provided to the optimizer.")
         self._variables = [tf.Variable(v, trainable=True, dtype=tf.float32) for v in variables]
+    
+    def minimize(self,
+                 loss_fn  : Callable[[],tf.Tensor],
+                 variables: List[tf.Tensor],
+                 ) -> None:
+        """
+        Computes gradients and updates the variables using `AMP` optimization.
+
+        Parameters:
+        -----------
+        loss_fn   : Callable[[], tf.Tensor]
+            A function that returns the loss tensor when called.
+        variables : List[tf.Tensor]
+            List of trainable variable to optimize.
+        """
+        with tf.GradientTape() as tape:
+            loss = loss_fn() # Compute loss
+        grads = tape.gradient(loss, variables) # Compute gradients
+
+        # Apply gradients to variables
+        self.apply_gradients(zip(grads, variables))
+
     def apply_gradients(self,
                         grads_and_vars: List[Tuple[tf.Tensor, tf.Variable]],
                         name: Optional[str]=None,
