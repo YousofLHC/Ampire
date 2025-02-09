@@ -13,7 +13,7 @@ License: MIT
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Tuple, Dict, Optional
+from typing import Any, List, Tuple, Dict, Optional, Callable
 import tensorflow as tf
 
 class BaseAMPOptimizer(tf.keras.optimizers.Optimizer, ABC):
@@ -85,6 +85,24 @@ class BaseAMPOptimizer(tf.keras.optimizers.Optimizer, ABC):
     def build(self,variables: List[tf.Variable]) -> None:
         """Initializes optimizer-related variables."""
         raise NotImplementedError
+
+    @abstractmethod
+    def minimize(self,
+                 loss_fn  : Callable[[], tf.Tensor],
+                 variables: List[tf.Variable],
+                 ) -> None:
+        """
+        Minimize a given loss function by computing gradients and updating variables.
+
+        Parameters:
+        -----------
+        loss_fn  : Callable[[], tf.Tensor]
+            A function that returns the loss tensor when called.
+        variables: List[tf.Tensor]
+            List of trainable variables to optimize.
+        """
+        raise NotImplementedError
+    
 
     @abstractmethod
     def apply_gradients(self,
