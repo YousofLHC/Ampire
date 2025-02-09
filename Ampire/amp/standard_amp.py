@@ -75,15 +75,21 @@ class StandardAMP(BaseAMPOptimizer):
         self.tau = tau
         self._variables = None # Placeholder for optimizer variables
     def build(self,
-              variables: List[tf.Variable]
+              variables: List[tf.Variable],
+              y        : tf.Tensor,
+              A        : tf.Tensor,
               ) -> None:
         """
-        Initializes optimizer-related variables.
+        Initializes optimizer-related variables and residual term (`z_k`)
 
         Parameters:
         -----------
         variables : List[tf.Variable]
             List of TensorFlow variables that the optimizer will update.
+        y         : tf.Tensor
+            Observed measurements.
+        A         : tf.Tensor
+            Measurement matrix.
 
         Returns:
         -------
@@ -92,7 +98,35 @@ class StandardAMP(BaseAMPOptimizer):
         if not variables:
             raise ValueError("No variables provided to the optimizer.")
         self._variables = [tf.Variable(v, trainable=True, dtype=tf.float32) for v in variables]
-    
+
+        # Initialize z_k (Residual term)
+        x_init     = tf.zeros_like(y, dtype=tf.float32) # Assume x_0=0 (or another initialization)
+        self._z    = y - tf.linalg.matvec(A, x_init) 
+        self.delta = tf.cast(tf.shape(y)[0], tf.float32) / tf.cast(tf.shape(A)[1], tf.float32)  # m/n
+        self.A     = A
+        self.y     = y
+
+
+    def denoise_derivative(self, x: tf.Tensor) -> tf.Tensor:
+        """
+        Computes the derivative of the general denoising function using auto-differentiation.
+
+        Parameters:
+        -----------
+        x : tf.Tensor
+            The input tensor.
+
+        Returns:
+        --------
+        tf.Tensor
+            The computed derivative.
+        """
+        with tf.GradientTape() as tape:
+            tape.watch(x)
+            denoised_x = self.denoise(x)  # Use user-defined denoise function
+        return tape.gradient(denoised_x, x)  # Compute derivative dynamically
+
+
     def minimize(self,
                  loss_fn  : Callable[[],tf.Tensor],
                  variables: List[tf.Tensor],
@@ -111,9 +145,28 @@ class StandardAMP(BaseAMPOptimizer):
             loss = loss_fn() # Compute loss
         grads = tape.gradient(loss, variables) # Compute gradients
 
+        # Compute denoise derivative using auto-diff
+        denoise_derivative = self.denoise_derivative(tf.stack(variables))
+
+
+        # Compute corrected gradient
+        corrected_grads = [
+            grad - self.compute_correction(z_var,denoise_derivative[i], self.delta)
+            for i, (grad, z_var) in enumerate(zip(grads, self._z))
+        ]
+
+        # Update z_k+1
+        x_vec = tf.concat([tf.reshape(var, [-1]) for var in variables], axis=0)
+        self._z.assign(
+            self.y - tf.linalg.matvec(self.A, x_vec)
+            + 
+            (tf.reduce_mean(denoise_derivative) / self.delta) * self._z
+        )
+        
         # Convert zip object to a list
-        grads_and_vars = list(zip(grads, variables))
-        # Apply gradients to variables
+        grads_and_vars = list(zip(corrected_grads, variables))
+
+        # Apply corrected gradients
         self.apply_gradients(grads_and_vars)
 
     def apply_gradients(self,
