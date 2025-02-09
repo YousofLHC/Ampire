@@ -193,8 +193,9 @@ class StandardAMP(BaseAMPOptimizer):
         # Update variables using AMP optimization rule
         for grad, var in grads_and_vars:
             if grad is not None:
-                update = var - self.learning_rate*grad
-                var.assign(update) # we can do it in one line var.assign_sub(self.learning_rate*grad)
+                #update = var - self.learning_rate*grad
+                #var.assign(update) # we can do it in one line var.assign_sub(self.learning_rate*grad)
+                var.assign_sub(self.learning_rate*grad)
 
 
     def denoise(self, x: tf.Tensor) -> tf.Tensor:
