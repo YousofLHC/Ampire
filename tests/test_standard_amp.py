@@ -37,3 +37,34 @@ def test_apply_gradients(amp_optimizer):
 
     expected_w = 2.0 - (amp_optimizer.learning_rate*3.0)
     tf.debugging.assert_near(w, expected_w)
+
+def test_build(amp_optimizer):
+    # Create dummy variables
+    variables = [tf.constant(0.1), tf.constant(-0.5), tf.constant(0.8)]
+
+    # Build optimizer with variables
+    amp_optimizer.build(variables)
+
+    # Check if variables are properly initialized.
+    assert amp_optimizer._variables is not None, (
+        "Optimizer variables should not be None after build."
+    )
+    assert all(isinstance(var, tf.Variable) for var in amp_optimizer._variables), (
+        "All elements in `amp_optimizer.variables` should be instance of tf.Variable."
+    )
+    assert len(amp_optimizer._variables) == len(variables), (
+        f"Expected {len(variables)} variables, but found {len(amp_optimizer._variables)}."
+    )
+
+
+
+
+
+
+
+
+
+
+
+
+
