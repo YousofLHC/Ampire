@@ -111,8 +111,10 @@ class StandardAMP(BaseAMPOptimizer):
             loss = loss_fn() # Compute loss
         grads = tape.gradient(loss, variables) # Compute gradients
 
+        # Convert zip object to a list
+        grads_and_vars = list(zip(grads, variables))
         # Apply gradients to variables
-        self.apply_gradients(zip(grads, variables))
+        self.apply_gradients(grads_and_vars)
 
     def apply_gradients(self,
                         grads_and_vars: List[Tuple[tf.Tensor, tf.Variable]],
