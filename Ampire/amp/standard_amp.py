@@ -103,7 +103,7 @@ class StandardAMP(BaseAMPOptimizer):
 
         # Initialize z_k (Residual term)
         x_init     = tf.zeros_like(y, dtype=tf.float32) # Assume x_0=0 (or another initialization)
-        self._z    = y - tf.linalg.matvec(A, x_init) 
+        self._z    = tf.Variable(y - tf.linalg.matvec(A, x_init), dtype=tf.float32) 
         self.delta = tf.cast(tf.shape(y)[0], tf.float32) / tf.cast(tf.shape(A)[1], tf.float32)  # m/n
         self.A     = A
         self.y     = y
