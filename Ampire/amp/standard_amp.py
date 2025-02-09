@@ -165,6 +165,16 @@ class StandardAMP(BaseAMPOptimizer):
     def get_config(self) -> Dict[str, Any]:
         """
         Returns optimizer configuration for TensorFlow compatibility.
+
+        Returns:
+        --------
+        Dict[str, Any]
+            A dictionary containing the optimizer configuration.
         """
-        raise NotImplementedError
+        config = super().get_config()
+        # Adding StandardAMP-specific parameter
+        config.update({
+            "tau"          : self.tau,
+        })
+        return config
         
