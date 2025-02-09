@@ -158,6 +158,34 @@ def test_apply_gradients(amp_optimizer):
 
 
 
+def test_minimize(amp_optimizer):
+    """
+    Test if `minimize()` correctly updates variables towards optimal values.
+    """
+    # Define a simple quadratic loss function: f(w)=(w-3)^2
+    def loss_function():
+        return tf.square(w - 3)
+
+    # Create a trainable variable
+    w = tf.Variable(5.0, dtype=tf.float32)
+
+    # Dummy values for `build()`
+    y = tf.constant([0.0], dtype=tf.float32)  # Placeholder for y
+    A = tf.constant([[1.0]], dtype=tf.float32)  # Identity-like transformation
+
+    # Call `build()` before using optimizer
+    amp_optimizer.build([w], y, A)
+
+    # Apply `minimize()`
+    amp_optimizer.minimize(loss_function, variables=[w])
+
+    # Expected new value of `w` (after one gradient descent step)
+    new_w = w.numpy()
+
+    # Ensure `w` moves closer to 3 (optimal value)
+    assert new_w < 5.0, (
+        f"Minimization failed, expected w < 5.0 but got {new_w}"
+    )
 
 
 
