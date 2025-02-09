@@ -24,3 +24,25 @@ def test_initialization(amp_optimizer):
     assert amp_optimizer.tol==1e-6, (
         f"Incorrect `tolerance` initialization. Got{amp_optimizer.tol}."
     )
+
+
+# Test `denoise` function
+def test_denoise(amp_optimizer):
+    """
+    Test if `denoise` function applies soft-thresholding correctly.
+    """
+    x               = tf.constant([-0.02, 0.50, 1.00, -1.50], dtype=tf.float32)
+    expected_output = tf.constant([-0.01, 0.49, 0.99, -1.49], dtype=tf.float32)
+
+    result          = amp_optimizer.denoise(x)
+    tf.debugging.assert_near(result, expected_output, atol=1e-6)
+
+
+
+
+
+
+
+
+
+
