@@ -38,6 +38,21 @@ def test_denoise(amp_optimizer):
     tf.debugging.assert_near(result, expected_output, atol=1e-6)
 
 
+# Test `compute_correction` function
+def test_compute_correction(amp_optimizer):
+    """
+    Test if `compute_correction` correctly computes the Onsager correction term.
+    """
+    z                  = tf.constant([0.1, -0.2, 0.3, -0.4], dtype=tf.float32)
+    denoise_derivative = tf.constant([0.5, 0.6, 0.7, 0.7], dtype=tf.float32)
+    delta              = 0.5 # Measurement ratio m/n=0.5
+
+    expected_correction = (tf.reduce_mean(denoise_derivative)/delta)*z
+    computed_correction = amp_optimizer.compute_correction(z, denoise_derivative, delta)
+
+    tf.debugging.assert_near(computed_correction, expected_correction, atol=1e-6)
+
+
 
 
 
