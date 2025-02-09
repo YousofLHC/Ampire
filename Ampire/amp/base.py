@@ -114,11 +114,24 @@ class BaseAMPOptimizer(tf.keras.optimizers.Optimizer, ABC):
         return tf.norm(x_new - x_old) < self.tol
 
     def get_config(self) -> Dict[str, Any]:
-        """Returns optimizer configuration for TensorFlow compatibility."""
-        config = super(tf.keras.optimizers.Optimizer).get_config()
-        config.update({
-            "name"    : self.name,
-            "max_iter": self.max_iter,
-            "tol"     : self.tol,
-        })
+        """
+        Returns optimizer configuration for TensorFlow compatibility.
+        
+        Returns:
+        --------
+        Dict[str, Any]
+            A dictionary containing the optimizer configuration.
+        """
+        #config = super(tf.keras.optimizers.Optimizer).get_config() # this method doesn't exist in super class.
+        #config.update({
+        #    "name"    : self.name,
+        #    "max_iter": self.max_iter,
+        #    "tol"     : self.tol,
+        #})
+        config = {
+            "learning_rate": self.learning_rate,
+            "name"         : self.name,
+            "max_iter"     : self.max_iter,
+            "tol"          : self.tol,
+        }
         return config
