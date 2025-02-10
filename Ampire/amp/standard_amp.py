@@ -114,7 +114,8 @@ class StandardAMP(BaseAMPOptimizer):
         self._variables = [tf.Variable(v, trainable=True, dtype=tf.float32) for v in variables]
 
         # Initialize z_k (Residual term)
-        x_init     = tf.zeros_like(y, dtype=tf.float32) # Assume x_0=0 (or another initialization)
+        # Corrected x_init: it should match the number of columns in A (not the shape of y)
+        x_init     = tf.zeros([tf.shape(A)[1]], dtype=tf.float32) 
         self._z    = tf.Variable(y - tf.linalg.matvec(A, x_init), dtype=tf.float32) 
         self.delta = tf.cast(tf.shape(y)[0], tf.float32) / tf.cast(tf.shape(A)[1], tf.float32)  # m/n
         self.A     = A
