@@ -58,6 +58,13 @@ class StandardAMP(BaseAMPOptimizer):
         """
         Initializes the Standard AMP Optimizer.
 
+        Standard AMP uses the following update rules:
+        1. Residual update:
+            \[ z^{(t)} = y - Ax^{(t)} + \frac{1}{\delta} \sum_{i=1}^{n} \eta'(x_i^{(t)}) z^{(t-1)} \]
+        2. Denoising step:
+            \[ x^{(t+1)} = \eta(A^T z^{(t)} + x^{(t)}) \]
+        where \( \eta(x) \) is the denoising function and \( \delta = \frac{m}{n} \).
+
         Parameters:
         -----------
         name         : str   (default="StandardAMP")
@@ -83,6 +90,11 @@ class StandardAMP(BaseAMPOptimizer):
               ) -> None:
         """
         Initializes optimizer-related variables and residual term (`z_k`)
+
+        The initial residual is computed as:
+        \[ z^{(0)} = y - Ax^{(0)} \]
+        where we assume \( x^{(0)} = 0 \).
+
 
         Parameters:
         -----------
@@ -191,23 +203,43 @@ class StandardAMP(BaseAMPOptimizer):
     def apply_gradients(self, grads_and_vars: List[Tuple[Optional[tf.Tensor], tf.Variable]], name: Optional[str] = None) -> None:
         """
         Applies updates to variables, supporting both standard gradient updates and AMP-style updates.
+
+        Parameters:
+        -----------
+        grads_and_vars : List[Tuple[Optional[tf.Tensor], tf.Variable]]
+            - A list of tuples containing gradients and the corresponding variables.
+            - If gradients are `None`, the AMP update rule is applied.
+
+        name : Optional[str] (default=None)
+            - Optional name for the operation.
+
+        Returns:
+        --------
+        None
         """
         if self._variables is None:
             raise ValueError("Optimizer variables are not initialized. Call `build()` first.")
 
         if grads_and_vars[0][0] is None:  # AMP update case
+            # Compute A^T * z_k (Gradient-free update)
             ATz = tf.linalg.matvec(self.A_T, self._z)
+            # Apply soft-thresholding
             updates = self.denoise(ATz + tf.stack([var.value() for _,var in grads_and_vars]))
             for i, (grad, var) in enumerate(grads_and_vars):
-                var.assign(updates[i])
+                var.assign(updates[i])# Update variable using AMP correction
         else:  # Standard gradient update
             for grad, var in grads_and_vars:
-                var.assign_sub(self.learning_rate * grad)
+                var.assign_sub(self.learning_rate * grad) # Standard SGD-like update
 
     @tf.function
     def denoise(self, x: tf.Tensor) -> tf.Tensor:
         """
         Applies a soft-thresholding function as a denoising step.
+
+        soft-thresholding function:
+        \[ \eta(x) = \text{sign}(x) \max(|x| - \tau, 0) \]
+        
+        This function shrinks values towards zero, promoting sparsity in the solution.
 
         Parameters:
         -----------
@@ -228,7 +260,10 @@ class StandardAMP(BaseAMPOptimizer):
                            delta         : float
                            ) -> tf.Tensor:
         """
-        Computes the Onsager correction term.
+        Computes the Onsager correction term:
+        \[ \text{correction} = \frac{1}{\delta} \sum_{i=1}^{n} \eta'(x_i) z_i \]
+        
+        where \( \eta'(x) \) is the derivative of the denoising function.
 
         Parameters:
         -----------
@@ -245,8 +280,8 @@ class StandardAMP(BaseAMPOptimizer):
             The Onsager correction term.
 
         """
-        mean_derivative = tf.reduce_mean(denoise_derivative)
-        correction = (mean_derivative/delta)*z
+        mean_derivative = tf.reduce_mean(denoise_derivative) # Average derivative of denoising function
+        correction = (mean_derivative/delta)*z # Onsager correction term
         return correction
 
     def get_config(self) -> Dict[str, Any]:
