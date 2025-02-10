@@ -177,30 +177,19 @@ class StandardAMP(BaseAMPOptimizer):
     def apply_gradients(self, grads_and_vars: List[Tuple[Optional[tf.Tensor], tf.Variable]], name: Optional[str] = None) -> None:
         """
         Applies updates to variables, supporting both standard gradient updates and AMP-style updates.
-    
-        Parameters:
-        -----------
-        grads_and_vars : List of (gradient, variable) tuples
-            If gradient is provided, performs standard gradient descent.
-            If gradient is None, performs AMP-style update.
-        name : Optional[str]
-            Optional name for the operation.
-    
-        Returns:
-        --------
-        None
         """
         if self._variables is None:
             raise ValueError("Optimizer variables are not initialized. Call `build()` first.")
-    
-        for grad, var in grads_and_vars:
-            if grad is None:
-                # AMP update rule using residual `_z`
-                update = self.denoise(tf.linalg.matvec(tf.transpose(self.A), self._z) + var)
-                var.assign(tf.squeeze(update))  # Direct assignment (non-gradient-based)
-            else:
-                # Standard TensorFlow-style gradient update (if used in other cases)
+
+        if grads_and_vars[0][0] is None:  # AMP update case
+            ATz = tf.linalg.matvec(tf.transpose(self.A), self._z)
+            updates = self.denoise(ATz + tf.stack([var.value() for _,var in grads_and_vars]))
+            for i, (grad, var) in enumerate(grads_and_vars):
+                var.assign(updates[i])
+        else:  # Standard gradient update
+            for grad, var in grads_and_vars:
                 var.assign_sub(self.learning_rate * grad)
+
 
 
     #def apply_gradients(self,
