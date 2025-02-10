@@ -136,25 +136,41 @@ def test_minimize_without_build(amp_optimizer):
         amp_optimizer.minimize(loss_function, variables=[w])
 
 
-# Test `apply_gradients` function
 def test_apply_gradients(amp_optimizer):
     """
-    Test if `apply_gradients` correctly updates variables.
+    Test if `apply_gradients` correctly updates variables in both AMP and standard gradient modes.
     """
-    # Define trainable variable and gradient
-    w = tf.Variable(2.0, dtype=tf.float32)  # Use `tf.Variable` instead of `tf.constant`
-    grad = tf.constant(3.0, dtype=tf.float32) # Gradient value
+    # Initialize optimizer variables
+    w = tf.Variable(2.0, dtype=tf.float32)
+    z = tf.Variable([0.1], dtype=tf.float32)
 
-    # Dummy values for `build()`
+    # Initialize measurement matrix `A` and observation `y`
     y = tf.constant([0.2], dtype=tf.float32)
     A = tf.constant([[0.5]], dtype=tf.float32)
 
-    # Call `build()` before using optimizer
+    # Build optimizer and set initial residual `_z`
     amp_optimizer.build([w], y, A)
-    amp_optimizer.apply_gradients([(grad, w)])
+    amp_optimizer._z.assign(z)
 
-    expected_w = 2.0 - (amp_optimizer.learning_rate*3.0)
-    tf.debugging.assert_near(w, expected_w, atol=1e-6 )
+    # Test AMP-style update (without explicit gradients)
+    amp_optimizer.apply_gradients([(None, w)])
+    expected_w_amp = amp_optimizer.denoise(tf.linalg.matvec(tf.transpose(A), z) + w)
+    #expected_w_amp = tf.squeeze(expected_w_amp)
+    tf.debugging.assert_near(w, expected_w_amp, atol=1e-1)
+
+    # Reset `w` to original value
+    w.assign(2.0)
+
+    # Compute standard gradient manually
+    with tf.GradientTape() as tape:
+        loss = tf.square(w - 3)  # Simple quadratic loss
+    grad = tape.gradient(loss, w)
+
+    # Test standard gradient update (with explicit gradients)
+    amp_optimizer.apply_gradients([(grad, w)])
+    expected_w_grad = 2.0 - amp_optimizer.learning_rate * grad
+    tf.debugging.assert_near(w, expected_w_grad, atol=1e-6)
+
 
 
 
