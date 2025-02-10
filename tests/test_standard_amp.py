@@ -149,23 +149,23 @@ def test_apply_gradients(amp_optimizer):
     amp_optimizer.build([w], y, A)
     amp_optimizer._z.assign(z)
 
-    # ✅ Store the original value of `w` before applying AMP update
+    # Store the original value of `w` before applying AMP update
     w_old = w.numpy()  # Extract the raw NumPy value before update
 
     # Apply AMP update step
     amp_optimizer.apply_gradients([(None, w)])
 
-    # ✅ Compute expected update using the stored old value
+    # Compute expected update using the stored old value
     expected_w_amp = amp_optimizer.denoise(tf.linalg.matvec(tf.transpose(A), z) + w_old)
 
-    # ✅ Print values for debugging
+    # Print values for debugging
     print(f"Expected w (AMP update): {expected_w_amp.numpy()}, Computed w: {w.numpy()}")
 
-    # ✅ Compare updated value with expected AMP update
+    # Compare updated value with expected AMP update
     tf.debugging.assert_near(w, expected_w_amp, atol=1e-6)
 
     # -----------------------------------
-    # ✅ Reset `w` to its original value
+    # Reset `w` to its original value
     w.assign(2.0)
     
     # Compute standard gradient manually
@@ -173,19 +173,19 @@ def test_apply_gradients(amp_optimizer):
         loss = tf.square(w - 3)  # Simple quadratic loss
     grad = tape.gradient(loss, w)
 
-    # ✅ Store `w` before standard gradient update
+    # Store `w` before standard gradient update
     w_old = w.numpy()  
 
     # Apply standard gradient update
     amp_optimizer.apply_gradients([(grad, w)])
 
-    # ✅ Compute expected update
+    # Compute expected update
     expected_w_grad = w_old - amp_optimizer.learning_rate * grad
 
-    # ✅ Print values for debugging
+    # Print values for debugging
     print(f"Expected w (Gradient update): {expected_w_grad.numpy()}, Computed w: {w.numpy()}")
 
-    # ✅ Compare updated value with expected standard gradient update
+    # Compare updated value with expected standard gradient update
     tf.debugging.assert_near(w, expected_w_grad, atol=1e-6)
   
 
@@ -247,7 +247,7 @@ def test_apply_gradients_multiple_variables(amp_optimizer):
     amp_optimizer.build([w1, w2], y, A)
     amp_optimizer._z.assign(z)
 
-    # ✅ Store original values of w1 and w2 BEFORE applying AMP update.
+    # Store original values of w1 and w2 BEFORE applying AMP update.
     # Freeze pre-update values.
     # What does `wi.numpy()` do?
     # - wi is a TensorFlow variable (`tf.Variable`), which means it keeps track of gradients and allows operations like `.assign()`.
@@ -258,13 +258,13 @@ def test_apply_gradients_multiple_variables(amp_optimizer):
     # Apply gradients (AMP update step)
     amp_optimizer.apply_gradients([(None, w1), (None, w2)])
 
-    # ✅ Compute expected update using the stored old values
+    # Compute expected update using the stored old values
     expected_w = amp_optimizer.denoise(tf.linalg.matvec(tf.transpose(A), z) + w_old)
 
-    # ✅ Print values for debugging
+    # Print values for debugging
     print(f"Expected w: {expected_w.numpy()}, Computed w: {[w1.numpy(), w2.numpy()]}")
 
-    # ✅ Compare the updated values with the expected ones
+    # Compare the updated values with the expected ones
     tf.debugging.assert_near(tf.stack([w1, w2]), expected_w, atol=1e-6)
 
 
