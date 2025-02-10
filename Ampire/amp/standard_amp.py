@@ -106,9 +106,10 @@ class StandardAMP(BaseAMPOptimizer):
         self._z    = tf.Variable(y - tf.linalg.matvec(A, x_init), dtype=tf.float32) 
         self.delta = tf.cast(tf.shape(y)[0], tf.float32) / tf.cast(tf.shape(A)[1], tf.float32)  # m/n
         self.A     = A
+        self.A_T   = tf.transpose(A)
         self.y     = y
 
-
+    @tf.function
     def denoise_derivative(self, x: tf.Tensor) -> tf.Tensor:
         """
         Computes the derivative of the general denoising function using auto-differentiation.
@@ -128,14 +129,15 @@ class StandardAMP(BaseAMPOptimizer):
             denoised_x = self.denoise(x)  # Use user-defined denoise function
         return tape.gradient(denoised_x, x)  # Compute derivative dynamically
 
-
+    @tf.function
     def minimize(self,
                  loss_fn  : Callable[[],tf.Tensor],
                  variables: List[tf.Tensor],
                  ) -> None:
         """
         Computes gradients and updates the variables using `AMP` optimization.
-
+        
+       
         Parameters:
         -----------
         loss_fn   : Callable[[], tf.Tensor]
@@ -153,15 +155,23 @@ class StandardAMP(BaseAMPOptimizer):
         # Compute denoise derivative using auto-diff
         denoise_derivative = self.denoise_derivative(tf.stack(variables))
 
-
-        # Compute corrected gradient
-        corrected_grads = [
-            grad - self.compute_correction(z_var,denoise_derivative[i], self.delta)
-            for i, (grad, z_var) in enumerate(zip(grads, self._z))
-        ]
-
+        ## for parallel process in `tf.map_fn`
+        ## - This method was optimized by replacing the for-loop with `tf.map_fn`,
+        ## - which significantly improves performance in `Graph Mode` and enables
+        ## - parallel processing for large tensors.
+        ##def compute_corrected_gradients(i, grad):
+        ##    return grad - self.compute_correction(self._z[i], denoise_derivative[i], self.delta)
+        ### Compute corrected gradient
+        ###corrected_grads = tf.map_fn(lambda x: compute_corrected_gradients(x[0], x[1]), 
+        ###                        (tf.range(len(grads)), grads), dtype=tf.float32)
+        #corrected_grads = [
+        #    grad - self.compute_correction(z_var,denoise_derivative[i], self.delta)
+        #    for i, (grad, z_var) in enumerate(zip(grads, self._z))
+        #]
+        corrected_grads = grads - self.compute_correction(self._z, denoise_derivative, self.delta)
         # Update z_k+1
-        x_vec = tf.concat([tf.reshape(var, [-1]) for var in variables], axis=0)
+        #x_vec = tf.concat([tf.reshape(var, [-1]) for var in variables], axis=0)
+        x_vec = tf.reshape(tf.stack(variables), [-1])
         self._z.assign(
             self.y - tf.linalg.matvec(self.A, x_vec)
             + 
@@ -169,11 +179,15 @@ class StandardAMP(BaseAMPOptimizer):
         )
         
         # Convert zip object to a list
-        grads_and_vars = list(zip(corrected_grads, variables))
+        grads_and_vars = tf.concat([tf.reshape(corrected_grads, [-1]), x_vec], axis=0)#grads_and_vars = list(zip(corrected_grads, variables))
+        
+
 
         # Apply corrected gradients
-        self.apply_gradients(grads_and_vars)
+        self.apply_gradients(list(zip(tf.unstack(grads_and_vars[:len(variables)]), variables)))#self.apply_gradients(grads_and_vars)
+        
 
+    @tf.function
     def apply_gradients(self, grads_and_vars: List[Tuple[Optional[tf.Tensor], tf.Variable]], name: Optional[str] = None) -> None:
         """
         Applies updates to variables, supporting both standard gradient updates and AMP-style updates.
@@ -182,7 +196,7 @@ class StandardAMP(BaseAMPOptimizer):
             raise ValueError("Optimizer variables are not initialized. Call `build()` first.")
 
         if grads_and_vars[0][0] is None:  # AMP update case
-            ATz = tf.linalg.matvec(tf.transpose(self.A), self._z)
+            ATz = tf.linalg.matvec(self.A_T, self._z)
             updates = self.denoise(ATz + tf.stack([var.value() for _,var in grads_and_vars]))
             for i, (grad, var) in enumerate(grads_and_vars):
                 var.assign(updates[i])
@@ -190,40 +204,7 @@ class StandardAMP(BaseAMPOptimizer):
             for grad, var in grads_and_vars:
                 var.assign_sub(self.learning_rate * grad)
 
-
-
-    #def apply_gradients(self,
-    #                    grads_and_vars: List[Tuple[tf.Tensor, tf.Variable]],
-    #                    name: Optional[str]=None,
-    #                    ) -> None:
-    #    """
-    #    Applies gradient updates to model parameters.
-#
-    #    Parameters:
-    #    -----------
-    #    grads_and_vars : List[Tuple[tf.Tensor, tf.Variable]]
-    #        A list of tuples containing gradients and the corresponding variables.
-    #    name : Optional[str] (default=None)
-    #        Optional name for operation.
-#
-    #    Returns:
-    #    --------
-    #    None
-    #    """
-    #    if self._variables is None:
-    #        raise ValueError("Optimizer variables are not initialized. Call `build()` first.")
-#
-    #    # Validate input type
-    #    if not isinstance(grads_and_vars, list):
-    #        raise ValueError(f"grads_and_vars must be a list of (gradient, variable) tuple. Got {grads_and_vars}")
-    #    # Update variables using AMP optimization rule
-    #    for grad, var in grads_and_vars:
-    #        if grad is not None:
-    #            #update = var - self.learning_rate*grad
-    #            #var.assign(update) # we can do it in one line var.assign_sub(self.learning_rate*grad)
-    #            var.assign_sub(self.learning_rate*grad)
-
-
+    @tf.function
     def denoise(self, x: tf.Tensor) -> tf.Tensor:
         """
         Applies a soft-thresholding function as a denoising step.
@@ -239,6 +220,8 @@ class StandardAMP(BaseAMPOptimizer):
             The thresholded output.
         """
         return tf.sign(x)*tf.maximum(tf.abs(x)-self.tau, 0)
+    
+    @tf.function
     def compute_correction(self,
                            z             : tf.Tensor,
                            denoise_derivative: tf.Tensor,
