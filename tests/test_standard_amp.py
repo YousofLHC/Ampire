@@ -26,7 +26,7 @@ def test_initialization(amp_optimizer):
     )
 
 
-# Test `denoise` function
+# Test `denoise` function #DONE
 def test_denoise(amp_optimizer):
     """
     Test if `denoise` function applies soft-thresholding correctly.
@@ -38,7 +38,7 @@ def test_denoise(amp_optimizer):
     tf.debugging.assert_near(result, expected_output, atol=1e-6)
 
 
-# Test `compute_correction` function
+# Test `compute_correction` function #DONE
 def test_compute_correction(amp_optimizer):
     """
     Test if `compute_correction` correctly computes the Onsager correction term.
@@ -54,7 +54,7 @@ def test_compute_correction(amp_optimizer):
 
 
 
-
+# DONE
 def test_build(amp_optimizer):
     """
     Test if `build` correctly initializes optimizer variables.
@@ -100,7 +100,7 @@ def test_build(amp_optimizer):
     expected_delta = tf.cast(tf.shape(y)[0],tf.float32)/tf.cast(tf.shape(A)[1],dtype=tf.float32)
     tf.debugging.assert_near(amp_optimizer.delta, expected_delta, atol=1e-6)
 
-
+# DONE
 def test_get_config(amp_optimizer):
     """
     Test if `get_config()` correctly returns optimizer configuration as a dictionary.
@@ -123,6 +123,7 @@ def test_get_config(amp_optimizer):
         "Mismatch `tol` parameter."
     )
 
+# DONE
 def test_minimize_without_build(amp_optimizer):
     """
     Test that calling `minimize()` before `build()` raises an error.
@@ -135,41 +136,58 @@ def test_minimize_without_build(amp_optimizer):
     with pytest.raises(ValueError, match="Optimizer is not built. Call `build\\(\\)` before `minimize\\(\\)`."):
         amp_optimizer.minimize(loss_function, variables=[w])
 
-
 def test_apply_gradients(amp_optimizer):
     """
     Test if `apply_gradients` correctly updates variables in both AMP and standard gradient modes.
     """
-    # Initialize optimizer variables
     w = tf.Variable(2.0, dtype=tf.float32)
     z = tf.Variable([0.1], dtype=tf.float32)
 
-    # Initialize measurement matrix `A` and observation `y`
     y = tf.constant([0.2], dtype=tf.float32)
     A = tf.constant([[0.5]], dtype=tf.float32)
 
-    # Build optimizer and set initial residual `_z`
     amp_optimizer.build([w], y, A)
     amp_optimizer._z.assign(z)
 
-    # Test AMP-style update (without explicit gradients)
+    # ✅ Store the original value of `w` before applying AMP update
+    w_old = w.numpy()  # Extract the raw NumPy value before update
+
+    # Apply AMP update step
     amp_optimizer.apply_gradients([(None, w)])
-    expected_w_amp = amp_optimizer.denoise(tf.linalg.matvec(tf.transpose(A), z) + w)
-    #expected_w_amp = tf.squeeze(expected_w_amp)
-    tf.debugging.assert_near(w, expected_w_amp, atol=1e-1)
 
-    # Reset `w` to original value
+    # ✅ Compute expected update using the stored old value
+    expected_w_amp = amp_optimizer.denoise(tf.linalg.matvec(tf.transpose(A), z) + w_old)
+
+    # ✅ Print values for debugging
+    print(f"Expected w (AMP update): {expected_w_amp.numpy()}, Computed w: {w.numpy()}")
+
+    # ✅ Compare updated value with expected AMP update
+    tf.debugging.assert_near(w, expected_w_amp, atol=1e-6)
+
+    # -----------------------------------
+    # ✅ Reset `w` to its original value
     w.assign(2.0)
-
+    
     # Compute standard gradient manually
     with tf.GradientTape() as tape:
         loss = tf.square(w - 3)  # Simple quadratic loss
     grad = tape.gradient(loss, w)
 
-    # Test standard gradient update (with explicit gradients)
+    # ✅ Store `w` before standard gradient update
+    w_old = w.numpy()  
+
+    # Apply standard gradient update
     amp_optimizer.apply_gradients([(grad, w)])
-    expected_w_grad = 2.0 - amp_optimizer.learning_rate * grad
+
+    # ✅ Compute expected update
+    expected_w_grad = w_old - amp_optimizer.learning_rate * grad
+
+    # ✅ Print values for debugging
+    print(f"Expected w (Gradient update): {expected_w_grad.numpy()}, Computed w: {w.numpy()}")
+
+    # ✅ Compare updated value with expected standard gradient update
     tf.debugging.assert_near(w, expected_w_grad, atol=1e-6)
+  
 
 
 
@@ -202,6 +220,52 @@ def test_minimize(amp_optimizer):
     assert new_w < 5.0, (
         f"Minimization failed, expected w < 5.0 but got {new_w}"
     )
+
+
+
+def test_apply_gradients_multiple_variables(amp_optimizer):
+    """
+    Test if `apply_gradients` correctly updates multiple variables.
+    """
+    # Initialize optimizer variables
+    w1 = tf.Variable(1, dtype=tf.float32)
+    w2 = tf.Variable(-0.5, dtype=tf.float32)
+    z  = tf.Variable([0.1, -0.3], dtype=tf.float32)
+    amp_optimizer.tau = 0.05
+
+    # Initialize measurement matrix `A` and observation `y`
+    y = tf.constant([0.4, -0.2], dtype=tf.float32)
+    A = tf.constant(
+        [
+            [0.5, 0.2],
+            [0.3, 0.7],
+        ],
+        dtype=tf.float32
+    )
+
+    # Build optimizer and set initial residual `z_k`
+    amp_optimizer.build([w1, w2], y, A)
+    amp_optimizer._z.assign(z)
+
+    # ✅ Store original values of w1 and w2 BEFORE applying AMP update.
+    # Freeze pre-update values.
+    # What does `wi.numpy()` do?
+    # - wi is a TensorFlow variable (`tf.Variable`), which means it keeps track of gradients and allows operations like `.assign()`.
+    # - Calling `wi.numpy()` extracts the raw NumPy value detached from the TensorFlow computation graph
+    # - Essentially, `wi.numpy()` returns a NumPy scalar or array with the same values but without TensorFlow's tracking mechanisms.
+    w_old = tf.stack([w1.numpy(), w2.numpy()])
+
+    # Apply gradients (AMP update step)
+    amp_optimizer.apply_gradients([(None, w1), (None, w2)])
+
+    # ✅ Compute expected update using the stored old values
+    expected_w = amp_optimizer.denoise(tf.linalg.matvec(tf.transpose(A), z) + w_old)
+
+    # ✅ Print values for debugging
+    print(f"Expected w: {expected_w.numpy()}, Computed w: {[w1.numpy(), w2.numpy()]}")
+
+    # ✅ Compare the updated values with the expected ones
+    tf.debugging.assert_near(tf.stack([w1, w2]), expected_w, atol=1e-6)
 
 
 
