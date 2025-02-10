@@ -174,36 +174,65 @@ class StandardAMP(BaseAMPOptimizer):
         # Apply corrected gradients
         self.apply_gradients(grads_and_vars)
 
-    def apply_gradients(self,
-                        grads_and_vars: List[Tuple[tf.Tensor, tf.Variable]],
-                        name: Optional[str]=None,
-                        ) -> None:
+    def apply_gradients(self, grads_and_vars: List[Tuple[Optional[tf.Tensor], tf.Variable]], name: Optional[str] = None) -> None:
         """
-        Applies gradient updates to model parameters.
-
+        Applies updates to variables, supporting both standard gradient updates and AMP-style updates.
+    
         Parameters:
         -----------
-        grads_and_vars : List[Tuple[tf.Tensor, tf.Variable]]
-            A list of tuples containing gradients and the corresponding variables.
-        name : Optional[str] (default=None)
-            Optional name for operation.
-
+        grads_and_vars : List of (gradient, variable) tuples
+            If gradient is provided, performs standard gradient descent.
+            If gradient is None, performs AMP-style update.
+        name : Optional[str]
+            Optional name for the operation.
+    
         Returns:
         --------
         None
         """
         if self._variables is None:
             raise ValueError("Optimizer variables are not initialized. Call `build()` first.")
-
-        # Validate input type
-        if not isinstance(grads_and_vars, list):
-            raise ValueError(f"grads_and_vars must be a list of (gradient, variable) tuple. Got {grads_and_vars}")
-        # Update variables using AMP optimization rule
+    
         for grad, var in grads_and_vars:
-            if grad is not None:
-                #update = var - self.learning_rate*grad
-                #var.assign(update) # we can do it in one line var.assign_sub(self.learning_rate*grad)
-                var.assign_sub(self.learning_rate*grad)
+            if grad is None:
+                # AMP update rule using residual `_z`
+                update = self.denoise(tf.linalg.matvec(tf.transpose(self.A), self._z) + var)
+                var.assign(tf.squeeze(update))  # Direct assignment (non-gradient-based)
+            else:
+                # Standard TensorFlow-style gradient update (if used in other cases)
+                var.assign_sub(self.learning_rate * grad)
+
+
+    #def apply_gradients(self,
+    #                    grads_and_vars: List[Tuple[tf.Tensor, tf.Variable]],
+    #                    name: Optional[str]=None,
+    #                    ) -> None:
+    #    """
+    #    Applies gradient updates to model parameters.
+#
+    #    Parameters:
+    #    -----------
+    #    grads_and_vars : List[Tuple[tf.Tensor, tf.Variable]]
+    #        A list of tuples containing gradients and the corresponding variables.
+    #    name : Optional[str] (default=None)
+    #        Optional name for operation.
+#
+    #    Returns:
+    #    --------
+    #    None
+    #    """
+    #    if self._variables is None:
+    #        raise ValueError("Optimizer variables are not initialized. Call `build()` first.")
+#
+    #    # Validate input type
+    #    if not isinstance(grads_and_vars, list):
+    #        raise ValueError(f"grads_and_vars must be a list of (gradient, variable) tuple. Got {grads_and_vars}")
+    #    # Update variables using AMP optimization rule
+    #    for grad, var in grads_and_vars:
+    #        if grad is not None:
+    #            #update = var - self.learning_rate*grad
+    #            #var.assign(update) # we can do it in one line var.assign_sub(self.learning_rate*grad)
+    #            var.assign_sub(self.learning_rate*grad)
 
 
     def denoise(self, x: tf.Tensor) -> tf.Tensor:
