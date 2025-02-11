@@ -57,6 +57,7 @@ class KalmanAMP(StandardAMP):
         self.P_0       = tf.eye(self.n, dtype=tf.float32)  # Identity matrix of size n x n
         self.Q_0       = tf.zeros([self.n, self.n], dtype=tf.float32)  # Zero matrix of size n x n
         self.I         = tf.eye(self.n, dtype=tf.float32)
+        self.R         = (self.delta**2) * self.I
 
         # Set initial P_t and Q_t
         self.P_t = self.P_0  # Set initial P_t
@@ -145,8 +146,6 @@ class KalmanAMP(StandardAMP):
         """
         raise NotImplementedError("Prior covariance matrix update needs to be implemented based on `8: Update covariance matrix P_t^-` in the `KAMP_algo.tex` algorithm.")
 
-
-
     def _update_covariance_matrix(self, G_t: tf.Tensor, P_t_prior: tf.Tensor) -> tf.Tensor:
         """
         Updates the covariance matrix P_t using the formula:
@@ -168,6 +167,7 @@ class KalmanAMP(StandardAMP):
             The updated covariance matrix P_t (shape: [n, n]).
         """
         temp = self.I - tf.matmul(G_t, self.A) # (I-G_t*A)
-        self.P_t = tf.matmul(temp, P_t_prior)
+        self.P_t = tf.matmul(temp, P_t_prior)  # (I-G_t*A)P_t^-
         return self.P_t
 
+ 
