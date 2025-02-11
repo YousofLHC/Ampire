@@ -141,3 +141,31 @@ class KalmanAMP(StandardAMP):
         NotImplementedError: The actual implementation of covariance matrix update should be done here based on the KAMP algorithm.
         """
         raise NotImplementedError("Prior covariance matrix update needs to be implemented based on `8: Update covariance matrix P_t^-` in the `KAMP_algo.tex` algorithm.")
+
+
+
+    def _update_covariance_matrix(self, G_t: tf.Tensor, P_t_prior: tf.Tensor) -> tf.Tensor:
+        """
+        Updates the covariance matrix P_t using the formula:
+        
+        P_t = (I - G_t A)P_t^{-}
+        
+        This method follows the steps outlined in the KAMP algorithm to update the covariance matrix for each iteration.
+        
+        Parameters:
+        -----------
+        G_t : tf.Tensor
+            The gain matrix at iteration t (shape: [n, m]).
+        P_t_prior : tf.Tensor
+            The prior covariance matrix at iteration t-1 (shape: [n, n]).
+
+        Returns:
+        -------- 
+        tf.Tensor
+            The updated covariance matrix P_t (shape: [n, n]).
+        """
+        # Implement the covariance matrix update based on the formula: P_t = (I - G_t A)P_t^{-}
+        raise NotImplementedError("Covariance matrix update needs to be implemented based on `9: Update covariance matrix P_t` in the `KAMP_algo.tex` algorithm.")
+    
+
+    
