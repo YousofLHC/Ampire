@@ -95,8 +95,14 @@ class KalmanAMP(StandardAMP):
         tf.Tensor
             The computed gain matrix G_t (shape: [n, m]).
         """
-        raise NotImplementedError("Implement gain matrix computation based on the formula: G_t = P_t^{-1} A^T (A P_t^{-1} A^T + R)^{-1}")
+        P_t_prior_A_T = tf.matmul(P_t_prior, self.A_T) #P_t^- *A^T
+        temp          = tf.matmul(self.A, P_t_prior_A_T) + self.R # (A*P_t^-*A^T+R)
+        temp          = tf.linalg.pinv(temp) # (A*P_t^-*A^T+R)^-1
+        self.G_t      = tf.matmul(P_t_prior_A_T, temp)
 
+        return self.G_t
+
+        
     def _update_Q_matrix(self, G_t: tf.Tensor, v_t: tf.Tensor) -> tf.Tensor:
         """
         Computes the matrix Q_t used in the KalmanAMP algorithm.
