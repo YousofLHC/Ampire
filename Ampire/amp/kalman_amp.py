@@ -33,7 +33,8 @@ class KalmanAMP(StandardAMP):
         Initializes optimizer variables and computes the initial residual _z.
 
         The initial residual is defined as:
-            z^(0) = x^(0)+A^T(y - A * x^(0))
+            r^(0) = x^(0)+A^T(y - A * x^(0))
+            z^(0) = y-A*x^(0)
         
         where x^(0) is assumed to be zero.
         
@@ -69,3 +70,24 @@ class KalmanAMP(StandardAMP):
             NotImplementedError: Since the actual gradient computation needs to be implemented.
         """
         raise NotImplementedError("apply_gradients method is not implemented yet.")
+    def _compute_gain_matrix(self, P_t: tf.Tensor, A: tf.Tensor, R: tf.Tensor) -> tf.Tensor:
+        """
+        Computes the gain matrix G_t used in the KalmanAMP algorithm.
+        The formula is:
+            G_t = P_t^{-1} A^T (A P_t^{-1} A^T + R)^{-1}
+
+        Parameters:
+        -----------
+        P_t : tf.Tensor
+            Covariance matrix at iteration t (shape: [n, n]).
+        A : tf.Tensor
+            Sensing matrix (shape: [m, n]).
+        R : tf.Tensor
+            Covariance of the error term (shape: [n, n]).
+
+        Returns:
+        --------
+        tf.Tensor
+            The computed gain matrix G_t (shape: [n, m]).
+        """
+        raise NotImplementedError("Impelement based on `9: Compute the gain matrix G_t:` in `KAMP_algo.tex`")
