@@ -17,6 +17,7 @@ class KalmanAMP(StandardAMP):
                  **kwargs: Any) -> None:
         """
         Initializes the Kalman AMP Optimizer by calling the parent class constructor.
+        self._z <- v_t
         """
         super().__init__(name=name, learning_rate=learning_rate, tau=tau, max_iter=max_iter, tol=tol, **kwargs)
         self.alpha = alpha    
@@ -179,5 +180,14 @@ class KalmanAMP(StandardAMP):
         temp = self.I - tf.matmul(G_t, self.A) # (I-G_t*A)
         self.P_t = tf.matmul(temp, P_t_prior)  # (I-G_t*A)P_t^-
         return self.P_t
+    
+    def get_config(self) -> Dict[str, Any]:
+
+        config = super().get_config()
+        config.update({
+            "alpha": self.alpha,
+        })
+        return config
+
 
  
