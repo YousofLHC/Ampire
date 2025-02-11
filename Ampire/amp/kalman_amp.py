@@ -70,6 +70,7 @@ class KalmanAMP(StandardAMP):
             NotImplementedError: Since the actual gradient computation needs to be implemented.
         """
         raise NotImplementedError("apply_gradients method is not implemented yet.")
+
     def _compute_gain_matrix(self, P_t: tf.Tensor, A: tf.Tensor, R: tf.Tensor) -> tf.Tensor:
         """
         Computes the gain matrix G_t used in the KalmanAMP algorithm.
@@ -90,4 +91,25 @@ class KalmanAMP(StandardAMP):
         tf.Tensor
             The computed gain matrix G_t (shape: [n, m]).
         """
-        raise NotImplementedError("Impelement based on `9: Compute the gain matrix G_t:` in `KAMP_algo.tex`")
+        raise NotImplementedError("Implement gain matrix computation based on the formula: G_t = P_t^{-1} A^T (A P_t^{-1} A^T + R)^{-1}")
+
+    def _compute_Q_matrix(self, G_t: tf.Tensor, v_t: tf.Tensor) -> tf.Tensor:
+        """
+        Computes the matrix Q_t used in the KalmanAMP algorithm.
+        The formula is:
+            Q_t = α Q_{t-1} + (1 - α)(G_t v_t^{-})(G_t v_t^{-})^T
+
+        Parameters:
+        -----------
+        G_t : tf.Tensor
+            Gain matrix at iteration t (shape: [n, m]).
+        v_t : tf.Tensor
+            Auxiliary vector (shape: [m, 1]).
+
+        Returns:
+        --------
+        tf.Tensor
+            The updated matrix Q_t (shape: [n, n]).
+        """
+        # Implement the computation of Q_t here
+        raise NotImplementedError("Implement matrix Q_t computation based on the formula: Q_t = α Q_{t-1} + (1 - α)(G_t v_t^{-})(G_t v_t^{-})^T")
