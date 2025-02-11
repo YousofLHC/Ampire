@@ -71,7 +71,7 @@ class KalmanAMP(StandardAMP):
         """
         raise NotImplementedError("apply_gradients method is not implemented yet.")
 
-    def _compute_gain_matrix(self, P_t: tf.Tensor, A: tf.Tensor, R: tf.Tensor) -> tf.Tensor:
+    def _update_gain_matrix(self, P_t: tf.Tensor, A: tf.Tensor, R: tf.Tensor) -> tf.Tensor:
         """
         Computes the gain matrix G_t used in the KalmanAMP algorithm.
         The formula is:
@@ -93,7 +93,7 @@ class KalmanAMP(StandardAMP):
         """
         raise NotImplementedError("Implement gain matrix computation based on the formula: G_t = P_t^{-1} A^T (A P_t^{-1} A^T + R)^{-1}")
 
-    def _compute_Q_matrix(self, G_t: tf.Tensor, v_t: tf.Tensor) -> tf.Tensor:
+    def _update_Q_matrix(self, G_t: tf.Tensor, v_t: tf.Tensor) -> tf.Tensor:
         """
         Computes the matrix Q_t used in the KalmanAMP algorithm.
         The formula is:
@@ -113,3 +113,31 @@ class KalmanAMP(StandardAMP):
         """
         # Implement the computation of Q_t here
         raise NotImplementedError("Implement matrix Q_t computation based on the formula: Q_t = α Q_{t-1} + (1 - α)(G_t v_t^{-})(G_t v_t^{-})^T")
+    
+    def _update_prior_covariance_matrix(self, J_eta: tf.Tensor, P_t_prior: tf.Tensor, Q_t_prior: tf.Tensor) -> tf.Tensor:
+        """
+        Updates the covariance matrix P_t^{-} using the formula:
+        
+        P_t^{-} = J_{\eta}(\hat{x}_{t-1}) P_{t-1} J_{\eta}^T(\hat{x}_{t-1}) + Q_{t-1}
+        
+        This method follows the steps outlined in the KAMP algorithm to update the covariance matrix for each iteration.
+        
+        Parameters:
+        -----------
+        J_eta : tf.Tensor
+            Gradient of the thresholding operator, size [n, m].
+        P_t_prior : tf.Tensor
+            The covariance matrix at iteration t-1, size [n, n].
+        Q_t_prior : tf.Tensor
+            The matrix Q at iteration t-1, size [n, n].
+        
+        Returns:
+        --------
+        tf.Tensor
+            The updated covariance matrix P_t^{-}, size [n, n].
+        
+        Raises:
+        --------
+        NotImplementedError: The actual implementation of covariance matrix update should be done here based on the KAMP algorithm.
+        """
+        raise NotImplementedError("Prior covariance matrix update needs to be implemented based on `8: Update covariance matrix P_t^-` in the `KAMP_algo.tex` algorithm.")
