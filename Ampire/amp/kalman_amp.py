@@ -8,6 +8,7 @@ class KalmanAMP(StandardAMP):
     """
 
     def __init__(self,
+                 alpha: float = 0.5,
                  name: str = "KalmanAMP",
                  learning_rate: float = 0.01,
                  tau: float = 0.01,
@@ -18,7 +19,7 @@ class KalmanAMP(StandardAMP):
         Initializes the Kalman AMP Optimizer by calling the parent class constructor.
         """
         super().__init__(name=name, learning_rate=learning_rate, tau=tau, max_iter=max_iter, tol=tol, **kwargs)
-        
+        self.alpha = alpha    
 
     def build(self,
               variables: List[tf.Variable],
@@ -123,7 +124,7 @@ class KalmanAMP(StandardAMP):
         """
         # Implement the computation of Q_t here
         raise NotImplementedError("Implement matrix Q_t computation based on the formula: Q_t = α Q_{t-1} + (1 - α)(G_t v_t^{-})(G_t v_t^{-})^T")
-    
+
     def _update_prior_covariance_matrix(self, J_eta: tf.Tensor, P_t_prior: tf.Tensor, Q_t_prior: tf.Tensor) -> tf.Tensor:
         """
         Updates the covariance matrix P_t^{-} using the formula:
