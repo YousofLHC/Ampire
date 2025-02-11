@@ -49,11 +49,23 @@ class KalmanAMP(StandardAMP):
         super().build(variables, y, A)
 
         # Recompute x_init after calling super().build(...)
-        x_init = tf.zeros([tf.shape(A)[1]], dtype=tf.float32)
+        #x_init = tf.zeros([tf.shape(A)[1]], dtype=tf.float32)
 
         # Update the value of _z as per the KalmanAMP formula
-        self._z = x_init + tf.linalg.matvec(tf.transpose(A), self._z)
+        #self._z = x_init + tf.linalg.matvec(tf.transpose(A), self._z) this is `r` param of eta function
 
         # Set initial P_t and Q_t
         self.P_t = self.P_0  # Set initial P_t
         self.Q_t = self.Q_0  # Set initial Q_t
+
+    
+    def apply_gradients(self, grads_and_vars: List[Tuple[Optional[tf.Tensor], tf.Variable]], name: Optional[str] = None) -> None:
+        """
+        Applies gradient updates to the variables.
+
+        In this implementation, we override this method to compute the gradient according to KAMP algorithm.
+
+        Raises:
+            NotImplementedError: Since the actual gradient computation needs to be implemented.
+        """
+        raise NotImplementedError("apply_gradients method is not implemented yet.")
