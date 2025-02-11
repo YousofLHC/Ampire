@@ -6,7 +6,7 @@ This module defines `StandardAMPOptimizer`, an implementation of Approximate Mes
 Features:
 - Implements the standard AMP algorithm.
 - Extends `BaseAMPOptimizer` for structured optimization.
-- Compatible with TensorFlow's optimizer API (`tf.keras.optimizers.Optimizer`).
+- Compatible with TensorFlow's optimizer API (tf.keras.optimizers.Optimizer).
 
 Author  : Yousof Ghalenoei (YousofLHC)
 Licence : MIT
@@ -19,285 +19,385 @@ from .base import BaseAMPOptimizer
 class StandardAMP(BaseAMPOptimizer):
     """
     Standard Approximate Message Passing (AMP) optimizer.
-
-    Implements the Standard AMP algorithm for sparse signal recovery.
-
+    
+    This optimizer is designed for sparse signal recovery (e.g., compressed sensing). Given the
+    linear model:
+    
+        y = A x + ε
+    
+    where:
+      - y ∈ ℝᵐ is the observation vector,
+      - A ∈ ℝᵐˣⁿ is the measurement matrix,
+      - x ∈ ℝⁿ is the sparse signal to recover,
+      - ε is the noise,
+    
+    the AMP algorithm iteratively updates the estimate x using the following equations:
+    
+      **Denoising/Update step:**
+          x^(t+1) = η(Aᵀ z^(t) + x^(t))
+      
+      **Residual update with Onsager correction:**
+          z^(t+1) = y - A x^(t+1) + α_t z^(t)
+          
+      where the denoising function η(·) is typically the soft-thresholding function defined by:
+      
+          η(x) = sign(x) · max(|x| - τ, 0)
+      
+      and the Onsager correction term is computed as:
+      
+          α_t = (1/m) ∑ᵢ η'(Aᵀ z^(t) + x^(t)).
+    
     Attributes:
     -----------
     learning_rate: float (default=0.01)
-        Learning rate for optimization updates.
-    max_iter     : int (default=50)
-        Maximum number of iteration
-    tol          : float (default=1e-6)
-        Convergence tolerance.
-
+        The learning rate for gradient updates.
+    tau: float (default=0.01)
+        The threshold parameter τ used in the soft-thresholding function.
+    max_iter: int (default=50)
+        Maximum number of iterations (not directly used in this class but can be used externally).
+    tol: float (default=1e-6)
+        Convergence tolerance (can be used to check convergence externally).
+    
     Methods:
     --------
-    build(variables: List[tf.Variable]) -> None
-        Initialize optimizer variables.
-    apply_gradients(grads_and_vars: List[Tuple[tf.Tensor, tf.Variable]], name: Optional[str]=None) -> None
-        Applies gradient updates.
+    build(variables: List[tf.Variable], y: tf.Tensor, A: tf.Tensor) -> None
+        Initializes the optimizer variables and computes the initial residual:
+            z^(0) = y - A x^(0)   with x^(0)=0.
+    apply_gradients(grads_and_vars: List[Tuple[tf.Tensor, tf.Variable]], name: Optional[str] = None) -> None
+        Applies gradient updates. In the AMP branch (when gradients are None) it computes:
+            x^(t+1) = η(Aᵀ z^(t) + x^(t))
     denoise(x: tf.Tensor) -> tf.Tensor
-        Applies a denoising function
+        Applies the soft-thresholding denoising function:
+            η(x) = sign(x) · max(|x| - τ, 0)
     compute_correction(z: tf.Tensor, denoise_derivative: tf.Tensor, delta: float) -> tf.Tensor
-        Computes the correction term.
-    has_converged(x_old: tf.Tensor, x_new: tf.Tensor) -> bool
-        Checks for convergence.
+        Computes the Onsager correction term:
+            correction = (mean(η'(x)) / δ) · z
     get_config() -> Dict[str, Any]
-        Returns optimizer configuration for TensorFlow compatibility.
+        Returns a configuration dictionary for TensorFlow compatibility.
     """
 
     def __init__(self,
-                 name         : str="StandardAMP",
-                 learning_rate: float=0.01,
-                 tau          : float=0.01, 
-                 max_iter     : int=50,
-                 tol          : float=1e-6,
-                 **kwargs     : Any
-                 ) -> None:
-        """
+                 name: str = "StandardAMP",
+                 learning_rate: float = 0.01,
+                 tau: float = 0.01, 
+                 max_iter: int = 50,
+                 tol: float = 1e-6,
+                 **kwargs: Any) -> None:
+        r"""
         Initializes the Standard AMP Optimizer.
-
-        Standard AMP uses the following update rules:
-        1. Residual update:
-            \[ z^{(t)} = y - Ax^{(t)} + \frac{1}{\delta} \sum_{i=1}^{n} \eta'(x_i^{(t)}) z^{(t-1)} \]
-        2. Denoising step:
-            \[ x^{(t+1)} = \eta(A^T z^{(t)} + x^{(t)}) \]
-        where \( \eta(x) \) is the denoising function and \( \delta = \frac{m}{n} \).
-
+        
         Parameters:
         -----------
-        name         : str   (default="StandardAMP")
+        name : str
             Name of the optimizer.
-        learning_rate: float (default=0.01)
-            Learning rate for optimization updates.
-        tau          : float (default=0.01)
-            Threshold parameter for soft-thresholding.
-        max_iter     : int   (default=50)
-            Maximum number of iterations.
-        tol          : float (default=1e-6)
-            Convergence tolerance.
+        learning_rate : float
+            Learning rate for gradient updates (must be positive).
+        tau : float
+            Threshold parameter for soft-thresholding (must be positive).
+        max_iter : int
+            Maximum number of iterations (must be positive).
+        tol : float
+            Convergence tolerance (must be positive).
+        **kwargs : Any
+            Additional keyword arguments.
         """
+        if learning_rate <= 0:
+            raise ValueError(f"`learning_rate` must be positive. Got {learning_rate}")
+        if tau <= 0:
+            raise ValueError(f"`tau` must be positive. Got {tau}")
+        if max_iter <= 0:
+            raise ValueError(f"`max_iter` must be positive. Got {max_iter}")
+        if tol <= 0:
+            raise ValueError(f"`tol` must be positive. Got {tol}")
+
         super().__init__(name=name, learning_rate=learning_rate, max_iter=max_iter, tol=tol, **kwargs)
-        self.tau        = tau
-        self._variables = None # Placeholder for optimizer variables
-        self._z         = None  # Ensure _z is initialized
+        self.tau = tau
+        self._variables = None  # List of variables to be optimized.
+        self._z = None  # Residual term, to be initialized in build().
 
     def build(self,
               variables: List[tf.Variable],
-              y        : tf.Tensor,
-              A        : tf.Tensor,
-              ) -> None:
+              y: tf.Tensor,
+              A: tf.Tensor) -> None:
         """
-        Initializes optimizer-related variables and residual term (`z_k`)
-
-        The initial residual is computed as:
-        \[ z^{(0)} = y - Ax^{(0)} \]
-        where we assume \( x^{(0)} = 0 \).
-
-
+        Initializes optimizer variables and computes the initial residual _z.
+        
+        The initial residual is defined as:
+        
+            z^(0) = y - A * x^(0)
+        
+        where x^(0) is assumed to be zero.
+        
         Parameters:
         -----------
         variables : List[tf.Variable]
-            List of TensorFlow variables that the optimizer will update.
-        y         : tf.Tensor
-            Observed measurements.
-        A         : tf.Tensor
-            Measurement matrix.
-
-        Returns:
-        -------
-        None
+            The list of trainable variables (x).
+        y : tf.Tensor
+            The observed measurement vector (shape: [m, 1]).
+        A : tf.Tensor
+            The measurement matrix (shape: [m, n]).
         """
+        if not isinstance(variables, list):
+            raise TypeError("`variables` must be a list of TensorFlow variables.")
         if not variables:
             raise ValueError("No variables provided to the optimizer.")
-        self._variables = [tf.Variable(v, trainable=True, dtype=tf.float32) for v in variables]
+        if not isinstance(A, tf.Tensor) or not isinstance(y, tf.Tensor):
+            raise TypeError(f"`A` and `y` must be TensorFlow tensors. Got A({tf.types(A)}), y({tf.types(y)})")
+        if len(A.shape) != 2:
+            raise ValueError("`A` must be a 2D tensor (matrix).")
+        if len(y.shape) != 2:
+            raise ValueError("`y` must be a 2D tensor (column vector).")
+        
+        self._variables = variables
+        x_init = tf.zeros([tf.shape(A)[1]], dtype=tf.float32)
+        # Convert y to a flat vector (m,)
+        y = tf.reshape(tf.cast(y, tf.float32), [-1])
+        A = tf.cast(A, tf.float32)
+        initial_z = y - tf.linalg.matvec(A, x_init)
+        self._z = tf.Variable(tf.reshape(initial_z, [-1, 1]), dtype=tf.float32, trainable=False)
+        self.delta = tf.cast(tf.shape(y)[0], tf.float32) / tf.cast(tf.shape(A)[1], tf.float32)
+        self.A, self.A_T, self.y = A, tf.transpose(A), y
 
-        # Initialize z_k (Residual term)
-        # Corrected x_init: it should match the number of columns in A (not the shape of y)
-        x_init     = tf.zeros([tf.shape(A)[1]], dtype=tf.float32) 
-        self._z    = tf.Variable(y - tf.linalg.matvec(A, x_init), dtype=tf.float32) 
-        self.delta = tf.cast(tf.shape(y)[0], tf.float32) / tf.cast(tf.shape(A)[1], tf.float32)  # m/n
-        self.A     = A
-        self.A_T   = tf.transpose(A)
-        self.y     = y
+        print(f"y shape: {y.shape}, A shape: {A.shape}, x_init shape: {x_init.shape}")
+        print(f"Initial z shape: {initial_z.shape}")
 
     @tf.function
     def denoise_derivative(self, x: tf.Tensor) -> tf.Tensor:
         """
-        Computes the derivative of the general denoising function using auto-differentiation.
-
+        Computes the derivative of the denoise function using automatic differentiation.
+        
+        This is used to compute the Onsager correction term.
+        
         Parameters:
         -----------
         x : tf.Tensor
-            The input tensor.
-
+            Input tensor.
+        
         Returns:
         --------
         tf.Tensor
-            The computed derivative.
+            The derivative of the denoising function.
         """
         with tf.GradientTape() as tape:
             tape.watch(x)
-            denoised_x = self.denoise(x)  # Use user-defined denoise function
-        return tape.gradient(denoised_x, x)  # Compute derivative dynamically
+            denoised_x = self.denoise(x)
+        return tape.gradient(denoised_x, x)
 
     @tf.function
-    def minimize(self,
-                 loss_fn  : Callable[[],tf.Tensor],
-                 variables: List[tf.Tensor],
-                 ) -> None:
+    def minimize(self, loss_fn: Callable[[], tf.Tensor], variables: List[tf.Tensor]) -> None:
         """
-        Computes gradients and updates the variables using `AMP` optimization.
+        Computes gradients and updates variables using the AMP optimization rule.
         
-       
+        The AMP updates are defined by the following steps:
+        
+            1. x-update:
+               x^(t+1) = η( Aᵀ z^(t) + x^(t) )
+            
+            2. z-update:
+               z^(t+1) = y - A x^(t+1) + α_t z^(t)
+               
+            where the Onsager correction term is:
+            
+               α_t = (1/m) ∑ η'(Aᵀ z^(t) + x^(t))
+        
         Parameters:
         -----------
-        loss_fn   : Callable[[], tf.Tensor]
-            A function that returns the loss tensor when called.
+        loss_fn : Callable[[], tf.Tensor]
+            A function that returns the loss tensor.
         variables : List[tf.Tensor]
-            List of trainable variable to optimize.
+            The list of trainable variables.
         """
+        if not callable(loss_fn):
+            raise TypeError("`loss_fn` must be a callable function that returns a Tensor.")
+        if not isinstance(variables, list) or not all(isinstance(v, tf.Variable) for v in variables):
+            raise TypeError("`variables` must be a list of TensorFlow variables.")
         if self._z is None:
             raise ValueError("Optimizer is not built. Call `build()` before `minimize()`.")
 
         with tf.GradientTape() as tape:
-            loss = loss_fn() # Compute loss
-        grads = tape.gradient(loss, variables) # Compute gradients
+            for var in self._variables:
+                tape.watch(var)
+            loss = loss_fn()
+        grads = tape.gradient(loss, variables)
+        if any(g is None for g in grads):
+            raise ValueError("Gradient computation failed: Some gradients are `None`.")
 
-        # Compute denoise derivative using auto-diff
+        # Compute denoising derivative: η'(·)
         denoise_derivative = self.denoise_derivative(tf.stack(variables))
+        # Reshape residual _z to rank 1
+        z_flat = tf.reshape(self._z, [-1])
+        ATz = tf.linalg.matvec(self.A_T, z_flat)
+        # Compute Onsager correction: (mean(η'(·))/δ) * z
+        correction = self.compute_correction(ATz, denoise_derivative, self.delta)
 
-        ## for parallel process in `tf.map_fn`
-        ## - This method was optimized by replacing the for-loop with `tf.map_fn`,
-        ## - which significantly improves performance in `Graph Mode` and enables
-        ## - parallel processing for large tensors.
-        ##def compute_corrected_gradients(i, grad):
-        ##    return grad - self.compute_correction(self._z[i], denoise_derivative[i], self.delta)
-        ### Compute corrected gradient
-        ###corrected_grads = tf.map_fn(lambda x: compute_corrected_gradients(x[0], x[1]), 
-        ###                        (tf.range(len(grads)), grads), dtype=tf.float32)
-        #corrected_grads = [
-        #    grad - self.compute_correction(z_var,denoise_derivative[i], self.delta)
-        #    for i, (grad, z_var) in enumerate(zip(grads, self._z))
-        #]
-        corrected_grads = grads - self.compute_correction(self._z, denoise_derivative, self.delta)
-        # Update z_k+1
-        #x_vec = tf.concat([tf.reshape(var, [-1]) for var in variables], axis=0)
-        x_vec = tf.reshape(tf.stack(variables), [-1])
-        self._z.assign(
-            self.y - tf.linalg.matvec(self.A, x_vec)
-            + 
-            (tf.reduce_mean(denoise_derivative) / self.delta) * self._z
-        )
-        
-        # Convert zip object to a list
-        grads_and_vars = tf.concat([tf.reshape(corrected_grads, [-1]), x_vec], axis=0)#grads_and_vars = list(zip(corrected_grads, variables))
-        
+        grads_tensor = tf.stack(grads)
+        corrected_grads_tensor = grads_tensor - correction
+        corrected_grads = tf.unstack(corrected_grads_tensor)
 
+        x_vec = tf.stack(variables)
+        new_z = self.y - tf.linalg.matvec(self.A, x_vec) \
+                + (tf.reduce_mean(denoise_derivative) / self.delta) * tf.reshape(self._z, [-1])
+        self._z.assign(tf.reshape(new_z, [-1, 1]))
 
-        # Apply corrected gradients
-        self.apply_gradients(list(zip(tf.unstack(grads_and_vars[:len(variables)]), variables)))#self.apply_gradients(grads_and_vars)
-        
+        self.apply_gradients(list(zip(corrected_grads, variables)))
 
     @tf.function
     def apply_gradients(self, grads_and_vars: List[Tuple[Optional[tf.Tensor], tf.Variable]], name: Optional[str] = None) -> None:
         """
-        Applies updates to variables, supporting both standard gradient updates and AMP-style updates.
-
+        Applies AMP-based gradient updates to the variables.
+        
+        In this implementation, the update always follows the AMP rule:
+            x^(t+1) = η( Aᵀ z^(t) + x^(t) )
+        regardless of the value of the gradients.
+        
         Parameters:
         -----------
         grads_and_vars : List[Tuple[Optional[tf.Tensor], tf.Variable]]
-            - A list of tuples containing gradients and the corresponding variables.
-            - If gradients are `None`, the AMP update rule is applied.
-
-        name : Optional[str] (default=None)
-            - Optional name for the operation.
-
-        Returns:
-        --------
-        None
+            A list of tuples pairing gradients (which will be ignored) with their corresponding variables.
+        name : Optional[str]
+            Optional name for the operation.
         """
         if self._variables is None:
             raise ValueError("Optimizer variables are not initialized. Call `build()` first.")
+        if not grads_and_vars or not isinstance(grads_and_vars, list):
+            raise ValueError("`grads_and_vars` must be a non-empty list.")
+        if any(not isinstance(var, tf.Variable) for _, var in grads_and_vars):
+            raise TypeError("Each tuple in `grads_and_vars` must contain a Tensor and a tf.Variable.")
+    
+        # Always use the AMP update branch.
+        # Reshape _z to rank 1 (m,)
+        z_flat = tf.reshape(self._z, [-1])
+        ATz = tf.linalg.matvec(self.A_T, z_flat)
+        x_current = tf.stack([var.value() for _, var in grads_and_vars])
+        tf.debugging.assert_equal(tf.shape(ATz), tf.shape(x_current),
+                                    message="Shape mismatch: ATz vs x_current")
+        updates = self.denoise(ATz + x_current)
+        for i, (_, var) in enumerate(grads_and_vars):
+            # Update each variable using the AMP rule.
+            if var.shape == ():
+                var.assign(tf.squeeze(updates[i]))
+            else:
+                var.assign(updates[i])
+        tf.print("ATz:", ATz, "shape:", tf.shape(ATz))
+        tf.print("x_current:", x_current, "shape:", tf.shape(x_current))
+        tf.print("updates:", updates, "shape:", tf.shape(updates))
 
-        if grads_and_vars[0][0] is None:  # AMP update case
-            # Compute A^T * z_k (Gradient-free update)
-            ATz = tf.linalg.matvec(self.A_T, self._z)
-            # Apply soft-thresholding
-            updates = self.denoise(ATz + tf.stack([var.value() for _,var in grads_and_vars]))
-            for i, (grad, var) in enumerate(grads_and_vars):
-                var.assign(updates[i])# Update variable using AMP correction
-        else:  # Standard gradient update
-            for grad, var in grads_and_vars:
-                var.assign_sub(self.learning_rate * grad) # Standard SGD-like update
+
+    #@tf.function
+    #def apply_gradients(self, grads_and_vars: List[Tuple[Optional[tf.Tensor], tf.Variable]], name: Optional[str] = None) -> None:
+    #    """
+    #    Applies gradient updates to the variables.
+    #    
+    #    In the AMP branch (when gradients are None), the update follows:
+    #    
+    #        x^(t+1) = η( Aᵀ z^(t) + x^(t) )
+    #        
+    #    where the denoising function η is the soft-thresholding operator.
+    #    
+    #    Parameters:
+    #    -----------
+    #    grads_and_vars : List[Tuple[Optional[tf.Tensor], tf.Variable]]
+    #        A list of tuples pairing gradients with their corresponding variables.
+    #    name : Optional[str]
+    #        Optional name for the operation.
+    #    """
+    #    if self._variables is None:
+    #        raise ValueError("Optimizer variables are not initialized. Call `build()` first.")
+    #    if not grads_and_vars or not isinstance(grads_and_vars, list):
+    #        raise ValueError("`grads_and_vars` must be a non-empty list.")
+    #    if any(not isinstance(var, tf.Variable) for _, var in grads_and_vars):
+    #        raise TypeError("Each tuple in `grads_and_vars` must contain a Tensor and a tf.Variable.")
+#
+    #    if grads_and_vars[0][0] is None:  # AMP update branch
+    #        # Reshape _z to rank 1 (m,)
+    #        z_flat = tf.reshape(self._z, [-1])
+    #        ATz = tf.linalg.matvec(self.A_T, z_flat)
+    #        x_current = tf.stack([var.value() for _, var in grads_and_vars])
+    #        tf.debugging.assert_equal(tf.shape(ATz), tf.shape(x_current),
+    #                                    message="Shape mismatch: ATz vs x_current")
+    #        updates = self.denoise(ATz + x_current)
+    #        for i, (grad, var) in enumerate(grads_and_vars):
+    #            if var.shape == ():
+    #                var.assign(tf.squeeze(updates[i]))
+    #            else:
+    #                var.assign(updates[i])
+    #        tf.print("ATz:", ATz, "shape:", tf.shape(ATz))
+    #        tf.print("x_current:", x_current, "shape:", tf.shape(x_current))
+    #        tf.print("updates:", updates, "shape:", tf.shape(updates))
+    #    else:  # Standard gradient update
+    #        for grad, var in grads_and_vars:
+    #            if grad is None:
+    #                continue
+    #            var.assign_sub(self.learning_rate * grad)
 
     @tf.function
     def denoise(self, x: tf.Tensor) -> tf.Tensor:
         """
-        Applies a soft-thresholding function as a denoising step.
-
-        soft-thresholding function:
-        \[ \eta(x) = \text{sign}(x) \max(|x| - \tau, 0) \]
+        Applies the soft-thresholding denoising function.
         
-        This function shrinks values towards zero, promoting sparsity in the solution.
-
+        The soft-thresholding operator is defined as:
+        
+            η(x) = sign(x) * max(|x| - τ, 0)
+        
+        where τ is the threshold parameter.
+        
         Parameters:
         -----------
-        x : tf.Tesnor
-            The input tensor.
-
+        x : tf.Tensor
+            Input tensor.
+            
         Returns:
         --------
         tf.Tensor
             The thresholded output.
         """
-        return tf.sign(x)*tf.maximum(tf.abs(x)-self.tau, 0)
-    
-    @tf.function
-    def compute_correction(self,
-                           z             : tf.Tensor,
-                           denoise_derivative: tf.Tensor,
-                           delta         : float
-                           ) -> tf.Tensor:
-        """
-        Computes the Onsager correction term:
-        \[ \text{correction} = \frac{1}{\delta} \sum_{i=1}^{n} \eta'(x_i) z_i \]
-        
-        where \( \eta'(x) \) is the derivative of the denoising function.
+        return tf.sign(x) * tf.maximum(tf.abs(x) - self.tau, 0)
 
+    @tf.function
+    def compute_correction(self, z: tf.Tensor, denoise_derivative: tf.Tensor, delta: float) -> tf.Tensor:
+        """
+        Computes the Onsager correction term.
+        
+        The Onsager correction term is given by:
+        
+            correction = (mean(η'(·)) / δ) * z
+        
+        where δ = m/n is the measurement ratio and η'(·) is the derivative of the denoising function.
+        
         Parameters:
         -----------
-        z                  : tf.Tensor
-            Residual vector from previous iteration.
+        z : tf.Tensor
+            The residual vector in feature space.
         denoise_derivative : tf.Tensor
             The derivative of the denoising function.
-        delta              : float
-            Measurment ratio (m/n)
-
+        delta : float
+            The measurement ratio (m/n).
+            
         Returns:
         --------
         tf.Tensor
-            The Onsager correction term.
-
+            The computed correction term.
         """
-        mean_derivative = tf.reduce_mean(denoise_derivative) # Average derivative of denoising function
-        correction = (mean_derivative/delta)*z # Onsager correction term
+        if not isinstance(z, tf.Tensor) or not isinstance(denoise_derivative, tf.Tensor):
+            raise TypeError("Inputs must be TensorFlow tensors.")
+        if not isinstance(delta, float) and not isinstance(delta, tf.Tensor):
+            raise TypeError("`delta` must be a float or a Tensor.")
+        mean_derivative = tf.reduce_mean(denoise_derivative)
+        correction = (mean_derivative / delta) * z
         return correction
 
     def get_config(self) -> Dict[str, Any]:
         """
-        Returns optimizer configuration for TensorFlow compatibility.
-
+        Returns the configuration of the optimizer for TensorFlow compatibility.
+        
         Returns:
         --------
-        Dict[str, Any]
-            A dictionary containing the optimizer configuration.
+        dict
+            A dictionary containing the configuration parameters.
         """
         config = super().get_config()
-        # Adding StandardAMP-specific parameter
         config.update({
-            "tau"          : self.tau,
+            "tau": self.tau,
         })
         return config
-        
+
