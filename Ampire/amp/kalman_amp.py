@@ -5,10 +5,6 @@ from .standard_amp import StandardAMP
 class KalmanAMP(StandardAMP):
     """
     Kalman Approximate Message Passing (KAMP) optimizer.
-
-    This optimizer combines the principles of Approximate Message Passing (AMP)
-    with Kalman filtering. The KalmanAMP algorithm updates the estimate of the signal
-    with a correction based on a Kalman gain matrix, making it more robust in handling noise.
     """
 
     def __init__(self,
@@ -19,14 +15,11 @@ class KalmanAMP(StandardAMP):
                  tol: float = 1e-6,
                  **kwargs: Any) -> None:
         """
-        Initializes the Kalman AMP Optimizer.
-        
+        Initializes the Kalman AMP Optimizer by calling the parent class constructor.
+
         - P_0 is initialized as an identity matrix, and Q_0 is initialized as a zero matrix.
         """
-        super().__init__(name=name, learning_rate=learning_rate, max_iter=max_iter, tol=tol, **kwargs)
-        self.tau = tau
-        self._variables = None  # List of variables to be optimized.
-        self._z = None  # Residual term, to be initialized in build().
+        super().__init__(name=name, learning_rate=learning_rate, tau=tau, max_iter=max_iter, tol=tol, **kwargs)
         
         # Initialize P_0 as an identity matrix and Q_0 as a zero matrix
         self.P_0 = tf.eye(self.n, dtype=tf.float32)  # Identity matrix of size n x n
@@ -38,9 +31,29 @@ class KalmanAMP(StandardAMP):
               A: tf.Tensor) -> None:
         """
         Initializes optimizer variables and computes the initial residual _z.
+
+        The initial residual is defined as:
+            z^(0) = x^(0)+A^T(y - A * x^(0))
+        
+        where x^(0) is assumed to be zero.
+        
+        Parameters:
+        -----------
+        variables : List[tf.Variable]
+            The list of trainable variables (x).
+        y : tf.Tensor
+            The observed measurement vector (shape: [m, 1]).
+        A : tf.Tensor
+            The measurement matrix (shape: [m, n]).
         """
         super().build(variables, y, A)
 
-        # Use P_0 and Q_0 as initialized
+        # Recompute x_init after calling super().build(...)
+        x_init = tf.zeros([tf.shape(A)[1]], dtype=tf.float32)
+
+        # Update the value of _z as per the KalmanAMP formula
+        self._z = x_init + tf.linalg.matvec(tf.transpose(A), self._z)
+
+        # Set initial P_t and Q_t
         self.P_t = self.P_0  # Set initial P_t
         self.Q_t = self.Q_0  # Set initial Q_t
