@@ -123,7 +123,10 @@ class KalmanAMP(StandardAMP):
             The updated matrix Q_t (shape: [n, n]).
         """
         # Implement the computation of Q_t here
-        raise NotImplementedError("Implement matrix Q_t computation based on the formula: Q_t = α Q_{t-1} + (1 - α)(G_t v_t^{-})(G_t v_t^{-})^T")
+        G_t_v_t  = tf.matvec(G_t, v_t)
+        temp     = tf.matmul(G_t_v_t, tf.transpose(G_t_v_t))
+        self.Q_t = self.alpha*self.Q_t + (1-self.alpha)*temp
+        return self.Q_t
 
     def _update_prior_covariance_matrix(self, J_eta: tf.Tensor, P_t_prior: tf.Tensor, Q_t_prior: tf.Tensor) -> tf.Tensor:
         """
