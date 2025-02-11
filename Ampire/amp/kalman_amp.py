@@ -62,8 +62,9 @@ class KalmanAMP(StandardAMP):
         self.R         = (self.delta**2) * self.I
 
         # Set initial P_t and Q_t
-        self.P_t = self.P_0  # Set initial P_t
-        self.Q_t = self.Q_0  # Set initial Q_t
+        self.P_t       = self.P_0  # Set initial P_t
+        self.Q_t       = self.Q_0  # Set initial Q_t
+        self.P_t_prior = self.P_0
 
     
     def apply_gradients(self, grads_and_vars: List[Tuple[Optional[tf.Tensor], tf.Variable]], name: Optional[str] = None) -> None:
@@ -181,6 +182,9 @@ class KalmanAMP(StandardAMP):
         self.P_t = tf.matmul(temp, P_t_prior)  # (I-G_t*A)P_t^-
         return self.P_t
     
+    def compute_correction(self):
+        raise NotImplementedError
+
     def get_config(self) -> Dict[str, Any]:
 
         config = super().get_config()
