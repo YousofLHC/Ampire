@@ -16,14 +16,9 @@ class KalmanAMP(StandardAMP):
                  **kwargs: Any) -> None:
         """
         Initializes the Kalman AMP Optimizer by calling the parent class constructor.
-
-        - P_0 is initialized as an identity matrix, and Q_0 is initialized as a zero matrix.
         """
         super().__init__(name=name, learning_rate=learning_rate, tau=tau, max_iter=max_iter, tol=tol, **kwargs)
         
-        # Initialize P_0 as an identity matrix and Q_0 as a zero matrix
-        self.P_0 = tf.eye(self.n, dtype=tf.float32)  # Identity matrix of size n x n
-        self.Q_0 = tf.zeros([self.n, self.n], dtype=tf.float32)  # Zero matrix of size n x n
 
     def build(self,
               variables: List[tf.Variable],
@@ -31,6 +26,7 @@ class KalmanAMP(StandardAMP):
               A: tf.Tensor) -> None:
         """
         Initializes optimizer variables and computes the initial residual _z.
+        - P_0 is initialized as an identity matrix, and Q_0 is initialized as a zero matrix.
 
         The initial residual is defined as:
             r^(0) = x^(0)+A^T(y - A * x^(0))
@@ -54,6 +50,13 @@ class KalmanAMP(StandardAMP):
 
         # Update the value of _z as per the KalmanAMP formula
         #self._z = x_init + tf.linalg.matvec(tf.transpose(A), self._z) this is `r` param of eta function
+
+        
+        # Initialize P_0 as an identity matrix and Q_0 as a zero matrix
+        self.m, self.n = tf.shape(A)
+        self.P_0       = tf.eye(self.n, dtype=tf.float32)  # Identity matrix of size n x n
+        self.Q_0       = tf.zeros([self.n, self.n], dtype=tf.float32)  # Zero matrix of size n x n
+        self.I         = tf.eye(self.n, dtype=tf.float32)
 
         # Set initial P_t and Q_t
         self.P_t = self.P_0  # Set initial P_t
@@ -164,8 +167,7 @@ class KalmanAMP(StandardAMP):
         tf.Tensor
             The updated covariance matrix P_t (shape: [n, n]).
         """
-        # Implement the covariance matrix update based on the formula: P_t = (I - G_t A)P_t^{-}
-        raise NotImplementedError("Covariance matrix update needs to be implemented based on `9: Update covariance matrix P_t` in the `KAMP_algo.tex` algorithm.")
-    
+        temp = self.I - tf.matmul(G_t, self.A) # (I-G_t*A)
+        self.P_t = tf.matmul(temp, P_t_prior)
+        return self.P_t
 
-    
