@@ -75,16 +75,16 @@ class KalmanAMP(StandardAMP):
         """
         raise NotImplementedError("apply_gradients method is not implemented yet.")
 
-    def _update_gain_matrix(self, P_t: tf.Tensor, A: tf.Tensor, R: tf.Tensor) -> tf.Tensor:
+    def _update_gain_matrix(self, P_t_prior: tf.Tensor, A: tf.Tensor, R: tf.Tensor) -> tf.Tensor:
         """
         Computes the gain matrix G_t used in the KalmanAMP algorithm.
         The formula is:
-            G_t = P_t^{-1} A^T (A P_t^{-1} A^T + R)^{-1}
+            G_t = P_t_prior A^T (A P_t_prior A^T + R)^{-1}
 
         Parameters:
         -----------
-        P_t : tf.Tensor
-            Covariance matrix at iteration t (shape: [n, n]).
+        P_t_prior : tf.Tensor
+            Prior covariance matrix at iteration t (shape: [n, n]).
         A : tf.Tensor
             Sensing matrix (shape: [m, n]).
         R : tf.Tensor
