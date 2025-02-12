@@ -8,18 +8,20 @@ class KalmanAMP(StandardAMP):
     """
 
     def __init__(self,
-                 alpha: float = 0.5,
-                 name: str = "KalmanAMP",
+                 alpha        : float = 0.5,
+                 name         : str   = "KalmanAMP",
                  learning_rate: float = 0.01,
-                 tau: float = 0.01,
-                 max_iter: int = 50,
-                 tol: float = 1e-6,
+                 tau          : float = 0.01,
+                 max_iter     : int   = 50,
+                 tol          : float = 1e-6,
                  **kwargs: Any) -> None:
         """
         Initializes the Kalman AMP Optimizer by calling the parent class constructor.
         self._z <- v_t
         """
-        super().__init__(name=name, learning_rate=learning_rate, tau=tau, max_iter=max_iter, tol=tol, **kwargs)
+        super().__init__(name=name, learning_rate=learning_rate,
+                         tau=tau,   max_iter=max_iter,
+                         tol=tol,   **kwargs)
         self.alpha = alpha    
 
     def build(self,
@@ -59,13 +61,12 @@ class KalmanAMP(StandardAMP):
         self.P_0       = tf.eye(self.n, dtype=tf.float32)  # Identity matrix of size n x n
         self.Q_0       = tf.zeros([self.n, self.n], dtype=tf.float32)  # Zero matrix of size n x n
         self.I         = tf.eye(self.n, dtype=tf.float32)
-        self.R         = (self.delta**2) * self.I
+        self.R         = (self.delta**2) * tf.eye(self.m, dtype=tf.float32)
 
         # Set initial P_t and Q_t
         self.P_t       = self.P_0  # Set initial P_t
         self.Q_t       = self.Q_0  # Set initial Q_t
         self.P_t_prior = self.P_0
-
     
     def apply_gradients(self, grads_and_vars: List[Tuple[Optional[tf.Tensor], tf.Variable]], name: Optional[str] = None) -> None:
         """
@@ -78,7 +79,7 @@ class KalmanAMP(StandardAMP):
         """
         raise NotImplementedError("apply_gradients method is not implemented yet.")
 
-    def _update_gain_matrix(self, P_t_prior: tf.Tensor, A: tf.Tensor, R: tf.Tensor) -> tf.Tensor:
+    def _update_gain_matrix(self, P_t_prior: tf.Tensor) -> tf.Tensor:
         """
         Computes the gain matrix G_t used in the KalmanAMP algorithm.
         The formula is:
@@ -105,7 +106,6 @@ class KalmanAMP(StandardAMP):
 
         return self.G_t
 
-        
     def _update_Q_matrix(self, G_t: tf.Tensor, v_t: tf.Tensor) -> tf.Tensor:
         """
         Computes the matrix Q_t used in the KalmanAMP algorithm.
@@ -130,7 +130,7 @@ class KalmanAMP(StandardAMP):
         self.Q_t = self.alpha*self.Q_t + (1-self.alpha)*temp
         return self.Q_t
 
-    def _update_prior_covariance_matrix(self, J_eta: tf.Tensor, P_t_prior: tf.Tensor, Q_t_prior: tf.Tensor) -> tf.Tensor:
+    def _update_prior_covariance_matrix(self, J_eta: tf.Tensor, P_t_prev: tf.Tensor, Q_t_prev: tf.Tensor) -> tf.Tensor:
         """
         Updates the covariance matrix P_t^{-} using the formula:
         
@@ -182,7 +182,15 @@ class KalmanAMP(StandardAMP):
         self.P_t = tf.matmul(temp, P_t_prior)  # (I-G_t*A)P_t^-
         return self.P_t
     
-    def compute_correction(self):
+    def compute_correction(self, G_t, A, P_t_prior, v_t):
+        self.G_t = self._update_gain_matrix(P_t_prior=self.P_t_prior,
+                                            A=self.A,
+                                            R=self.R)
+        # update variables
+
+        self.P_t = self._update_covariance_matrix(G_t=self.G_t, P_t_prior=self.P_t_prior)
+        self.Q_t = self._update_Q_matrix(G_t=self.G_t, v_t=v_t)
+
         raise NotImplementedError
 
     def get_config(self) -> Dict[str, Any]:
