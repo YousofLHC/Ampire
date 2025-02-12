@@ -60,6 +60,43 @@ def amp(y, A, lam=0.1, max_iter=50, tol=1e-6):
     
     return x_est
 
+    
+def kamp(y, A, lam=0.1, alpha=0.3, max_iter=50, tol=1e-6):
+    m, n = A.shape
+    x_est = np.zeros(n)
+    P = np.zeros((n, n))
+    Q = np.zeros((n, n))
+    I = np.eye(n)
+    z = y.copy()
+    delta = m / n  
+    R = (delta**2) * np.eye(m)  # Change R dimensions to (m, m)
+    
+    for t in range(max_iter):
+        AT = A.T
+        v = y - A @ x_est  # Residual v = y - A * x_est
+        r = x_est + AT @ v  # r = x_est + A^T * v (previous residual)
+        x_prior = grad_denoising_function(r, lam)  # x_t^- = η'(r; λ)
+        
+        J = x_prior @ (I - AT @ A)  # J = η'(.;.) * (I - A^T * A)
+        P_prior = J @ P @ J.T + Q  # P_t^- = J * P_prev * J^T + Q
+        
+        # Fix error in this part:
+        G = P_prior @ AT @ np.linalg.pinv(A @ P_prior @ AT + R)  # R dimensions are now (m, m)
+        x_new = x_prior + G @ (y - A @ x_prior)  # Update x_t = x_t^- + G * (y - A * x_t^-)
+        
+        P = (I - G @ A) @ P_prior  # Update covariance matrix P
+        Gv = G @ v  # Auxiliary vector Gv = G * v
+        Q = alpha * Q + (1 - alpha) * (Gv @ Gv.T)  # Update matrix Q
+        
+        if np.linalg.norm(x_new - x_est) < tol:  # Convergence condition
+            break
+        
+        x_est = x_new  # Update the estimated signal
+    
+    return x_est
+
+
+
 if __name__ == "__main__":
     np.random.seed(40)
     m, n = 100, 200
@@ -68,7 +105,7 @@ if __name__ == "__main__":
     x_true[np.random.choice(n, 10, replace=False)] = np.random.randn(10)
     y = A @ x_true + 0.05 * np.random.randn(m)
     
-    x_rec = amp(y, A, lam=0.001, max_iter=50_000)
+    x_rec = kamp(y, A, lam=0.001, max_iter=50_000)
     
     mse = compute_mse(x_true, x_rec)
     nmse = compute_nmse(x_true, x_rec)
@@ -89,6 +126,6 @@ if __name__ == "__main__":
     plt.hist(x_true - x_rec, bins=30, alpha=0.7, color='b')
     plt.xlabel("Error Value (x_true - x_rec)")
     plt.ylabel("Frequency")
-    plt.title("Error Distribution of AMP Recovery")
+    plt.title("Error Distribution of KAMP Recovery")
     plt.grid()
     plt.show()
