@@ -178,6 +178,12 @@ class KalmanAMP(StandardAMP):
         tf.Tensor
             The updated covariance matrix P_t (shape: [n, n]).
         """
+        # Ensure proper shapes
+        if tf.shape(G_t)[1] != tf.shape(self.A)[0]:
+            raise ValueError(f"Shape mismatch between `G_t` and `A`: {tf.shape(G_t)[1] != tf.shape(self.A)[0]}")
+        if tf.shape(P_t_prior)[0] != tf.shape(P_t_prior)[1]:
+            raise ValueError(f"P_t_prior must be a square matrix, but got shape {tf.shape(P_t_prior)}")
+        
         temp = self.I - tf.matmul(G_t, self.A) # (I-G_t*A)
         self.P_t = tf.matmul(temp, P_t_prior)  # (I-G_t*A)P_t^-
         return self.P_t
