@@ -99,6 +99,17 @@ class KalmanAMP(StandardAMP):
         tf.Tensor
             The computed gain matrix G_t (shape: [n, m]).
         """
+        # Validate the shapes of the matrices
+        if len(P_t_prior.shape)!=2 or P_t_prior.shape[0] != P_t_prior.shape[1]:
+            raise ValueError(f"P_t_prior must be a square matrix, got shape {P_t_prior.shape}")
+        
+        if len(self.A.shape)!=2 or self.A.shape[0] != self.A.shape[1]:
+            raise ValueEror(f"The number of columns in `A` must match the size of P_t_prior, got `A` shape {self.A.shape} and P_t_prior shape {P_t_prior.shape}")
+
+        if len(self.R.shape)!=2 or self.R.shape[0]!=self.R.shape[1]:
+            raise ValueError(f"`R` must be a square matrix, got shape {self.R.shape}")
+
+        # Compute the gain matrix
         P_t_prior_A_T = tf.matmul(P_t_prior, self.A_T) #P_t^- *A^T
         temp          = tf.matmul(self.A, P_t_prior_A_T) + self.R # (A*P_t^-*A^T+R)
         temp          = tf.linalg.pinv(temp) # (A*P_t^-*A^T+R)^-1
