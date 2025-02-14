@@ -191,7 +191,7 @@ class KalmanAMP(StandardAMP):
         """
         # Ensure proper shapes
         if tf.shape(G_t)[1] != tf.shape(self.A)[0]:
-            raise ValueError(f"Shape mismatch between `G_t` and `A`: {tf.shape(G_t)[1] != tf.shape(self.A)[0]}")
+            raise ValueError(f"Shape mismatch between `G_t` and `A`: {tf.shape(G_t)[1]} != {tf.shape(self.A)[0]}")
         if tf.shape(P_t_prior)[0] != tf.shape(P_t_prior)[1]:
             raise ValueError(f"P_t_prior must be a square matrix, but got shape {tf.shape(P_t_prior)}")
         
