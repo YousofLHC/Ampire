@@ -95,3 +95,22 @@ def test_update_covariance_matrix(setup_optimizer):
     # Check that the updated covariance matrix is of the correct shape
     assert P_t.shape == (optimizer.n, optimizer.n), f"Failed: P_t should have shape ({optimizer.n}, {optimizer.n}), but got {P_t.shape}."
     print("Passed: _update_covariance_matrix works as expected.")
+
+
+
+def test_compute_correction_not_implemented(setup_optimizer):
+    optimizer = setup_optimizer
+    
+    # Sample input values for the test
+    G_t = tf.random.normal([3, 2])  # 3x2 gain matrix
+    A = tf.random.normal([3, 3])    # 3x3 matrix A
+    P_t_prior = tf.eye(3)           # 3x3 identity matrix (prior covariance)
+    v_t = tf.random.normal([3, 1])  # 3x1 auxiliary vector
+
+    # Call build method to initialize necessary variables
+    optimizer.build([tf.Variable([0.0, 0.0, 0.0])], v_t, A)
+
+    # Test that a NotImplementedError is raised when calling compute_correction
+    with pytest.raises(NotImplementedError):
+        optimizer.compute_correction(G_t, A, P_t_prior, v_t)
+    print("Passed: compute_correction raises NotImplementedError as expected.")
