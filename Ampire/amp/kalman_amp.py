@@ -200,9 +200,7 @@ class KalmanAMP(StandardAMP):
         return self.P_t
     
     def compute_correction(self, G_t, A, P_t_prior, v_t):
-        self.G_t = self._update_gain_matrix(P_t_prior=self.P_t_prior,
-                                            A=self.A,
-                                            R=self.R)
+        self.G_t = self._update_gain_matrix(P_t_prior=self.P_t_prior)
         # update variables
 
         self.P_t = self._update_covariance_matrix(G_t=self.G_t, P_t_prior=self.P_t_prior)
