@@ -8,3 +8,4 @@ if __name__ == "__main__":
     print("#"*90)
 else:
     from .amp.standard_amp import StandardAMP
+    from .amp.kalman_amp import KalmanAMP
