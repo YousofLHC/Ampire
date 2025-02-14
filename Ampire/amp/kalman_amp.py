@@ -104,7 +104,7 @@ class KalmanAMP(StandardAMP):
             raise ValueError(f"P_t_prior must be a square matrix, got shape {P_t_prior.shape}")
         
         if len(self.A.shape)!=2 or self.A.shape[0] != self.A.shape[1]:
-            raise ValueEror(f"The number of columns in `A` must match the size of P_t_prior, got `A` shape {self.A.shape} and P_t_prior shape {P_t_prior.shape}")
+            raise ValueError(f"The number of columns in `A` must match the size of P_t_prior, got `A` shape {self.A.shape} and P_t_prior shape {P_t_prior.shape}")
 
         if len(self.R.shape)!=2 or self.R.shape[0]!=self.R.shape[1]:
             raise ValueError(f"`R` must be a square matrix, got shape {self.R.shape}")
@@ -136,13 +136,13 @@ class KalmanAMP(StandardAMP):
             The updated matrix Q_t (shape: [n, n]).
         """
         # Implement the computation of Q_t here
-        G_t_v_t  = tf.matvec(G_t, v_t)
+        G_t_v_t  = tf.matmul(G_t, v_t)
         temp     = tf.matmul(G_t_v_t, tf.transpose(G_t_v_t))
         self.Q_t = self.alpha*self.Q_t + (1-self.alpha)*temp
         return self.Q_t
 
     def _update_prior_covariance_matrix(self, J_eta: tf.Tensor, P_t_prev: tf.Tensor, Q_t_prev: tf.Tensor) -> tf.Tensor:
-        """
+        r"""
         Updates the covariance matrix P_t^{-} using the formula:
         
         P_t^{-} = J_{\eta}(\hat{x}_{t-1}) P_{t-1} J_{\eta}^T(\hat{x}_{t-1}) + Q_{t-1}
