@@ -75,3 +75,23 @@ def test_update_Q_matrix(setup_optimizer):
     # Check that the Q_t matrix is updated correctly
     assert Q_t.shape == (optimizer.n, optimizer.n), f"Failed: Q_t should have shape ({optimizer.n}, {optimizer.n}), but got {Q_t.shape}."
     print("Passed: _update_Q_matrix works as expected.")
+
+def test_update_covariance_matrix(setup_optimizer):
+    optimizer = setup_optimizer
+
+    # Input values for the test
+    # samples  -> m=2
+    # features -> n=3
+    G_t = tf.random.normal([3, 2])  # 3x2 gain matrix (n, m)
+    P_t_prior = tf.eye(3)  # 3x3 identity matrix (n, n)
+    A = tf.random.normal([2, 3])  # 3x3 matrix A (m, n)
+
+    # Call build method to initialize necessary variables
+    optimizer.build([tf.Variable([0.0, 0.0, 0.0])], tf.random.normal([2, 1]), A)
+    
+    # Update the covariance matrix
+    P_t = optimizer._update_covariance_matrix(G_t, P_t_prior)
+    
+    # Check that the updated covariance matrix is of the correct shape
+    assert P_t.shape == (optimizer.n, optimizer.n), f"Failed: P_t should have shape ({optimizer.n}, {optimizer.n}), but got {P_t.shape}."
+    print("Passed: _update_covariance_matrix works as expected.")
